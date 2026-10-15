@@ -36,6 +36,17 @@ class MobileBridgeService : Service() {
                 stopSelf()
                 return START_NOT_STICKY
             }
+            ACTION_RESTART -> {
+                // 端口/绑定模式只在 MobileBridgeServer.start() 时读取，改了配置必须重建 server 才生效。
+                // 这里原地重启：先停（释放端口），稍等一拍再起，避免 TIME_WAIT/占用导致 bind 失败。
+                stopServer()
+                ensureChannel()
+                startForeground(NOTIFICATION_ID, buildNotification())
+                android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                    startServer()
+                }, RESTART_DELAY_MS)
+                return START_STICKY
+            }
             else -> {
                 ensureChannel()
                 startForeground(NOTIFICATION_ID, buildNotification())
@@ -117,6 +128,27 @@ class MobileBridgeService : Service() {
 
         const val ACTION_START = "com.openclaw.assistant.bridge.START"
         const val ACTION_STOP = "com.openclaw.assistant.bridge.STOP"
+        const val ACTION_RESTART = "com.openclaw.assistant.bridge.RESTART"
+
+        /** 停一拍再起的时间：给 ServerSocket 释放端口留点余量 */
+        private const val RESTART_DELAY_MS = 400L
+
+        fun restart(context: Context) {
+            val intent = Intent(context, MobileBridgeService::class.java).setAction(ACTION_RESTART)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) context.startForegroundService(intent)
+            else context.startService(intent)
+        }
+
+        /**
+         * 保存设置时调用：桥开着就用新配置重启一次（bindMode/port 只在 server start() 时读取，
+         * 不重建 server 就不会生效）。返回是否真的触发了重启。
+         */
+        fun restartIfRunning(context: Context): Boolean {
+            val cfg = MobileBridgeConfig.getInstance(context)
+            if (!cfg.enabled.value) return false
+            restart(context)
+            return true
+        }
 
         fun start(context: Context) {
             val intent = Intent(context, MobileBridgeService::class.java).setAction(ACTION_START)

@@ -28,6 +28,7 @@ import com.openclaw.assistant.backend.BackendRepository
 import com.openclaw.assistant.backend.BackendType
 import com.openclaw.assistant.backend.HermesConfigApi
 import com.openclaw.assistant.backend.HermesCronJob
+import com.openclaw.assistant.backend.HermesCronSchedule
 import com.openclaw.assistant.backend.OpenClawCronApi
 import com.openclaw.assistant.backend.OpenClawCronJob
 import kotlinx.coroutines.launch
@@ -296,7 +297,7 @@ fun CronJobList(backend: AgentBackendConfig) {
         JobEditDialog(
             title = stringResource(R.string.cron_edit_job),
             initialName = job.name,
-            initialSchedule = job.schedule.expr,
+            initialSchedule = job.schedule.editText(),
             initialPrompt = job.prompt,
             initialRepeat = job.repeat?.times,
             onDismiss = { editingJob = null },
@@ -385,7 +386,7 @@ fun CronJobCard(
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = job.schedule.expr,
+                        text = job.scheduleLabel(),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -760,6 +761,22 @@ private fun OpenClawCronJob.scheduleLabel(): String {
         "at" -> schedule.at ?: schedule.kind
         else -> schedule.kind
     }
+}
+
+/** Hermes 后端：三种 schedule 里只有 cron 有 expr，interval/once 用 display 兜底。 */
+private fun HermesCronJob.scheduleLabel(): String =
+    schedule.display?.takeIf { it.isNotBlank() }
+        ?: schedule.expr
+        ?: schedule.kind.orEmpty()
+
+/**
+ * 编辑框预填：Hermes 的新建/更新接口收的是"schedule 字符串"而不是结构化对象，
+ * 所以 interval 要还原成 "10m"（parse_schedule 会重新解析成 interval），once 用 run_at 原文。
+ */
+private fun HermesCronSchedule.editText(): String = when (kind) {
+    "interval" -> minutes?.let { "${it}m" } ?: display.orEmpty()
+    "once" -> runAt ?: display.orEmpty()
+    else -> expr ?: display.orEmpty()
 }
 
 @Composable

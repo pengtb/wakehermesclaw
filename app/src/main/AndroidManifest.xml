@@ -151,6 +151,12 @@
             android:name="com.openclaw.assistant.ui.setup.AgentVoiceSetupActivity"
             android:exported="false"
             android:theme="@style/Theme.OpenClawAssistant" />
+        <!-- 从"设置 → 连接"重跑首启设置向导 -->
+        <activity
+            android:name="com.openclaw.assistant.ui.SetupGuideActivity"
+            android:exported="false"
+            android:label="@string/setup_guide_title"
+            android:theme="@style/Theme.OpenClawAssistant" />
         <!-- Deep-link target for WakeHermesClaw pairing QR codes. Any QR scanner on the
              phone (including the stock camera app on modern Android) routes
              agentvoice://setup?... or agentvoice://hermes/setup?... here. -->

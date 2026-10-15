@@ -37,6 +37,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.openclaw.assistant.R
 import com.openclaw.assistant.bridge.MobileBridgeConfig
+import com.openclaw.assistant.ui.setup.AgentVoiceCommands
+import com.openclaw.assistant.ui.setup.DesktopOs
+import com.openclaw.assistant.ui.setup.DesktopOsSelector
 
 /**
  * Pairing screen. Generates a short-lived offer and
@@ -96,10 +99,32 @@ private fun BridgePairingScreen() {
                     }
                 }
                 Spacer(Modifier.height(16.dp))
+                var desktopOs by remember { mutableStateOf(DesktopOs.UNIX) }
+                DesktopOsSelector(os = desktopOs, onChange = { desktopOs = it })
+                Spacer(Modifier.height(8.dp))
                 Text(
-                    stringResource(R.string.av_pair_desktop_command, o.code),
-                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                    stringResource(R.string.av_pair_desktop_command_label),
+                    style = MaterialTheme.typography.bodySmall,
                 )
+                Text(
+                    AgentVoiceCommands.pairBridge(desktopOs, o.code),
+                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    stringResource(R.string.av_pair_desktop_fallback_label),
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                Text(
+                    AgentVoiceCommands.pairBridgeFallback(desktopOs, o.code, port),
+                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+                Spacer(Modifier.height(8.dp))
+                OutlinedButton(onClick = { copy(context, AgentVoiceCommands.pairBridge(desktopOs, o.code)) }) {
+                    Text(stringResource(R.string.av_setup_copy_command))
+                }
             }
         }
     }

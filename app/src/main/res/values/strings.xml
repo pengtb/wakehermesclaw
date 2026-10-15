@@ -29,6 +29,10 @@
     <string name="backend_lan_url">LAN URL (optional)</string>
     <string name="backend_tailscale_url">Tailscale URL (optional)</string>
     <string name="backend_public_url">Public URL (optional)</string>
+    <string name="backend_terminal_section">Terminal (Hermes dashboard)</string>
+    <string name="backend_terminal_section_help">The in-app terminal connects to the Hermes dashboard over a WebSocket (/api/pty), not to the API server. Paste the URL the dashboard is reachable at, plus its session token (HERMES_DASHBOARD_SESSION_TOKEN, or __HERMES_SESSION_TOKEN__ in the dashboard page).</string>
+    <string name="backend_terminal_url">Terminal URL (e.g. https://host:10000)</string>
+    <string name="backend_terminal_token">Dashboard session token</string>
     <string name="backend_loading_hermes_models">Loading Hermes models...</string>
     <string name="backend_loading_models">Loading models...</string>
     <string name="backend_applying_hermes_model">Applying model to Hermes...</string>
@@ -69,6 +73,11 @@
     <string name="av_bridge_connection_section">Connection</string>
     <string name="av_bridge_port">Port</string>
     <string name="av_bridge_lan_warning">LAN / VPN exposes this device to the network. Use it only on trusted Wi-Fi or Tailscale.</string>
+    <string name="saved_bridge_restarted">Saved. Mobile Bridge restarted with the new settings.</string>
+    <string name="setup_guide_paste_payload_label">Or paste the pairing payload</string>
+    <string name="setup_guide_paste_payload_hint">JSON payload or agentvoice:// link printed by agentvoice-pair</string>
+    <string name="setup_guide_paste_payload_apply">Apply pasted payload</string>
+    <string name="setup_guide_paste_payload_invalid">That is not a pairing payload. Paste the JSON payload or the agentvoice:// link that agentvoice-pair printed.</string>
     <string name="av_bridge_security_section">Security</string>
     <string name="av_bridge_token_not_generated">Not generated yet</string>
     <string name="av_bridge_rotate_token">Rotate token</string>
@@ -87,9 +96,16 @@
     <string name="av_bridge_api_stopped">Bridge API stopped</string>
     <string name="av_pair_expires_in">Expires in %1$ds</string>
     <string name="av_pair_desktop_command">On the desktop, run:\n  hermes-pair %1$s\n  (or POST {&quot;code&quot;:&quot;%1$s&quot;} to /pair on this bridge)</string>
+    <string name="av_pair_desktop_command_label">On the desktop, run:</string>
+    <string name="av_pair_desktop_fallback_label">…or pair without the tool:</string>
+    <string name="av_desktop_os_windows">Windows</string>
+    <string name="av_desktop_os_unix">Linux / macOS</string>
+    <string name="av_setup_install_win_note">Installs agentvoice-pair.ps1 plus an agentvoice-pair.cmd wrapper (PowerShell; no Python needed).</string>
+    <string name="av_setup_install_unix_note">Installs the bash edition (needs bash/curl/awk/od/gzip only; no Python needed).</string>
 
     <!-- WakeHermesClaw setup wizard -->
     <string name="av_setup_title">Set up WakeHermesClaw</string>
+    <string name="av_setup_skip">Skip for now</string>
     <string name="av_setup_welcome_title">Welcome to WakeHermesClaw</string>
     <string name="av_setup_welcome_body">A native Android voice client for Hermes Agent and OpenClaw. Run the pairing helper on your computer, answer whether to include Hermes Agent, OpenClaw, and Tailscale, then scan one QR in this app.</string>
     <string name="av_setup_choose_title">Which backends will you use?</string>
@@ -115,9 +131,9 @@
     <string name="av_setup_scope_hermes">Only Hermes Agent will be included in the QR.</string>
     <string name="av_setup_scope_openclaw">Only OpenClaw will be included in the QR.</string>
     <string name="av_pairing_card_step1">1. On the computer running Hermes Agent or OpenClaw, install the WakeHermesClaw pairing helper:</string>
-    <string name="av_pairing_card_step2">2. Run the helper. It reads local Hermes Agent/OpenClaw settings, detects Tailscale, and uses a temporary public tunnel when the phone is not on the same LAN/VPN:</string>
-    <string name="av_pairing_card_step3">3. Scan that QR inside WakeHermesClaw. Included backends are saved together.</string>
-    <string name="av_pairing_card_note">The public tunnel is temporary and useful for setup from cellular networks. For daily use, prefer Tailscale/VPN or a trusted LAN.</string>
+    <string name="av_pairing_card_step2">2. Run the helper. It reads your Hermes Agent settings (API key and a reachable address) and produces the pairing QR:</string>
+    <string name="av_pairing_card_step3">3. Scan that QR - the built-in scanner and the phone\'s camera app both work. The agentvoice:// link opens WakeHermesClaw and imports the backend.</string>
+    <string name="av_pairing_card_note">The QR carries your Hermes API key and dashboard session token, so treat the image like a password. No public tunnel is used.</string>
     <string name="av_pairing_scan_qr">Scan pairing QR</string>
     <string name="av_setup_copy_command">Copy command</string>
     <string name="av_setup_command_copied">Command copied</string>
@@ -298,6 +314,8 @@
     <string name="settings_category_chat">Chat</string>
     <string name="settings_category_connections">Connections</string>
     <string name="settings_category_connections_desc">Switch or manage server connections</string>
+    <string name="settings_run_setup_wizard">Run setup wizard again</string>
+    <string name="settings_run_setup_wizard_desc">Reopens the first-run guide: connection mode, pairing QR, permissions and the final check.</string>
     <string name="settings_category_chat_desc">Reasoning, tool display, endpoints, message length</string>
     <string name="settings_category_voice_mode">Voice mode</string>
     <string name="settings_category_voice_desc">Interaction mode, silence threshold, providers</string>
@@ -934,6 +952,12 @@
     <string name="qr_scan_prompt">Scan QR Code</string>
 <string name="qr_scan_desc">Align the QR code within the frame to scan it</string>
     <string name="qr_scan_unavailable">QR scanning is unavailable. Please update Google Play Services.</string>
+    <string name="qr_scan_help_title">In-app scanning unavailable</string>
+    <string name="qr_scan_help_module">This build borrows its QR module from Google Play services, and the module is not installed for this app, so the built-in scanner cannot start. On your computer, generate the deep-link QR (agentvoice-pair -DeepLinkQr on Windows, agentvoice-pair.sh --deeplink-qr on Linux/macOS) and scan it with your phone\'s camera app: the agentvoice:// link opens this app and imports the same settings.</string>
+    <string name="qr_scan_help_permission">Scanning needs the camera permission. Grant it in Settings → Apps → WakeHermesClaw → Permissions and try again - or scan the QR with your phone\'s camera app, which opens this app directly through the agentvoice:// link.</string>
+    <string name="qr_scan_help_ok">Got it</string>
+    <string name="qr_scan_help_unknown">That QR code is not a WakeHermesClaw pairing code. Scan the pairing QR that agentvoice-pair prints on your computer (JSON payload or agentvoice:// deep link).</string>
+    <string name="av_import_received_label">Received link (key/token masked):</string>
     <string name="setup_guide_qr_scan_title">OpenClaw QR pairing</string>
     <string name="setup_guide_qr_scan_cmd_label">Run this on the OpenClaw host, then scan the QR in this app:</string>
     <string name="setup_guide_code_input_title">Option 2: Enter Setup Code</string>

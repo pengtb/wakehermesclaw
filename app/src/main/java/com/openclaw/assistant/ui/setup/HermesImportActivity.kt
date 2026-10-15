@@ -16,7 +16,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.Button
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
@@ -131,6 +133,22 @@ private fun ImportScreen(uri: Uri?, onFinish: () -> Unit, onCancel: () -> Unit) 
             Spacer(Modifier.height(8.dp))
             if (parsed == null) {
                 Text(stringResource(R.string.av_import_missing), style = MaterialTheme.typography.bodyMedium)
+                uri?.toString()?.takeIf { it.isNotBlank() }?.let { received ->
+                    Spacer(Modifier.height(12.dp))
+                    Text(
+                        stringResource(R.string.av_import_received_label),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    SelectionContainer {
+                        Text(
+                            maskSecretsInUri(received),
+                            style = MaterialTheme.typography.bodySmall,
+                            fontFamily = FontFamily.Monospace,
+                        )
+                    }
+                }
                 Spacer(Modifier.height(16.dp))
                 OutlinedButton(onClick = onCancel, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.av_import_close)) }
                 return@Column
@@ -485,7 +503,11 @@ internal fun parsePairingUri(uri: Uri): PairingPayload? {
     val openClawSetupCode = uri.getQueryParameter("oc")?.trim()?.ifEmpty { null }
     val terminalCommandUrl = uri.getQueryParameter("oau")?.trim()?.takeIf { it.startsWith("http://") || it.startsWith("https://") }
     val terminalCommandSecret = uri.getQueryParameter("oas")?.trim()?.ifEmpty { null }
-    if (hermes == null && openClawSetupCode == null) return null
+    if (hermes == null && openClawSetupCode == null) {
+        // 备用形式：agentvoice://setup/<base64url(JSON 载荷)>
+        // 有的扫码 App/浏览器会把 query 吃掉或再编码一次，把载荷放"路径"里就能活下来。
+        return decodePathPayload(uri)
+    }
     return PairingPayload(
         hermes = hermes,
         openClawSetupCode = openClawSetupCode,
@@ -493,6 +515,19 @@ internal fun parsePairingUri(uri: Uri): PairingPayload? {
         terminalCommandSecret = terminalCommandSecret,
     )
 }
+
+/** 解析 agentvoice://setup/<base64url(JSON)> 这种把载荷放在路径里的深链。 */
+private fun decodePathPayload(uri: Uri): PairingPayload? {
+    val segment = uri.pathSegments.firstOrNull { it.isNotBlank() } ?: return null
+    val decoded = decodeUrlSafeBase64(segment) ?: return null
+    return runCatching { parsePairingJson(decoded) }.getOrNull()
+}
+
+/** 诊断用：把深链里的 key/token 换成 <len=N>，其余原样显示。 */
+private fun maskSecretsInUri(raw: String): String =
+    Regex("([?&])(hk|k|htt|tt|oas)=([^&]*)").replace(raw) { match ->
+        "${match.groupValues[1]}${match.groupValues[2]}=<len=${match.groupValues[3].length}>"
+    }
 
 internal fun parsePairingPayload(raw: String): PairingPayload? {
     val trimmed = raw.trim()
@@ -636,9 +671,9 @@ private fun parseHermesRelayApiUrl(obj: JsonObject): String? {
 private val pairingJson = Json { ignoreUnknownKeys = true; isLenient = true }
 
 private fun parseHermesParams(uri: Uri, prefix: String): HermesPairingPayload? {
-    val urls = withoutAndroidLoopbackUrls(uri.getQueryParameters("${prefix}u"))
-    val base = urls.firstOrNull()?.takeIf { it.startsWith("http://") || it.startsWith("https://") } ?: return null
-    val secondary = urls.drop(1).filter { it.startsWith("http://") || it.startsWith("https://") }
+    val urls = withoutAndroidLoopbackUrls(uri.getQueryParameters("${prefix}u").mapNotNull { normalizeUrlValue(it) })
+    val base = urls.firstOrNull() ?: return null
+    val secondary = urls.drop(1)
     return HermesPairingPayload(
         baseUrl = base,
         secondaryUrls = secondary,
@@ -647,10 +682,28 @@ private fun parseHermesParams(uri: Uri, prefix: String): HermesPairingPayload? {
         useRunsApi = uri.getQueryParameter("${prefix}r") != "0",
         streaming = uri.getQueryParameter("${prefix}s") != "0",
         displayName = uri.getQueryParameter("${prefix}n"),
-        terminalUrl = uri.getQueryParameter("${prefix}tu")
-            ?.takeIf { it.startsWith("http://") || it.startsWith("https://") },
+        terminalUrl = normalizeUrlValue(uri.getQueryParameter("${prefix}tu")),
         terminalSessionToken = uri.getQueryParameter("${prefix}tt")?.trim()?.ifEmpty { null },
     )
+}
+
+/**
+ * 有些扫码 App / 浏览器 / 中转 App 会把整条 URL 再编码一次，于是 app 收到的是
+ * hu=https%3A%2F%2F…（解码一次仍是 %3A%2F%2F），startsWith("https://") 判定就会失败，
+ * 界面报"缺少必要信息"。这里逐级反转义，最多三层。
+ */
+private fun normalizeUrlValue(raw: String?): String? {
+    var value = raw?.trim().orEmpty()
+    var guard = 0
+    while (guard < 3 && value.isNotEmpty() &&
+        !value.startsWith("http://") && !value.startsWith("https://")
+    ) {
+        val decoded = runCatching { Uri.decode(value) }.getOrDefault(value)
+        if (decoded == value) break
+        value = decoded
+        guard++
+    }
+    return value.takeIf { it.startsWith("http://") || it.startsWith("https://") }
 }
 
 private fun withoutAndroidLoopbackUrls(urls: List<String>): List<String> {

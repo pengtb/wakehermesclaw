@@ -1,0 +1,8 @@
+# 换行符策略：脚本要能被 Linux/macOS 直接执行，不能被 CRLF 污染（shebang 带 \r 会报
+# "bash\r: No such file or directory"）。Windows 脚本反过来用 CRLF 更自然。
+*.sh text eol=lf
+*.py text eol=lf
+*.ps1 text eol=crlf
+*.psm1 text eol=crlf
+*.cmd text eol=crlf
+*.bat text eol=crlf

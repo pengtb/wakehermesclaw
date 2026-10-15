@@ -234,7 +234,11 @@ class SettingsActivity : ComponentActivity() {
                     SettingsScreen(
                         settings = settings,
                         onSave = {
-                            Toast.makeText(this, getString(R.string.saved), Toast.LENGTH_SHORT).show()
+                            // 保存时若 Mobile Bridge 正在运行，就用刚保存的配置重启一次：
+                            // bindMode/port 只有 server start() 时才读，不重建 server 就一直用旧值。
+                            val bridgeRestarted = com.openclaw.assistant.bridge.MobileBridgeService.restartIfRunning(this)
+                            val message = if (bridgeRestarted) R.string.saved_bridge_restarted else R.string.saved
+                            Toast.makeText(this, getString(message), Toast.LENGTH_SHORT).show()
                             finish()
                         },
                         onBack = { finish() },
@@ -658,6 +662,22 @@ fun SettingsScreen(
                             }
                             Spacer(modifier = Modifier.height(16.dp))
                         }
+
+                        // 重跑首启设置向导（配过后 MainActivity 不会再自动展示它，这里给个人口）
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedButton(
+                            onClick = {
+                                context.startActivity(Intent(context, com.openclaw.assistant.ui.SetupGuideActivity::class.java))
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text(stringResource(R.string.settings_run_setup_wizard))
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            stringResource(R.string.settings_run_setup_wizard_desc),
+                            style = MaterialTheme.typography.bodySmall,
+                        )
 
                         if (backendSettingsTabIndex == 1 && openClawTabIndex == 0) {
                             // Setup Code quick-config (from `openclaw qr --setup-code-only`)
@@ -1897,7 +1917,8 @@ fun SettingsScreen(
                     Spacer(modifier = Modifier.height(12.dp))
 
                     Text(
-                        text = stringResource(R.string.app_version, versionName),
+                        text = stringResource(R.string.app_version, versionName) +
+                            " · build " + com.openclaw.assistant.BuildConfig.BUILD_TAG,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.fillMaxWidth(),

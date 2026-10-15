@@ -1,3 +1,8 @@
+> ### 这是 pengtb 的 fork（Hermes Agent 集成）
+> 在上游基础上补齐 Hermes 侧配对/桥接体验并修了几个 bug。改动清单、Mobile Bridge 能力实测表、
+> 构建说明见文末 [**Fork notes**](#fork-notes-hermes-pairing--mobile-bridge-status)。
+> 上游：[yuga-hashimoto/openclaw-assistant](https://github.com/yuga-hashimoto/openclaw-assistant)（MIT）。
+
 # WakeHermesClaw for Android 🦞
 
 > **A native Android voice client for OpenClaw and Hermes Agent.**
@@ -353,6 +358,111 @@ Please follow [BUILDING.md](BUILDING.md) for local setup and run the documented 
 MIT License - See [LICENSE](LICENSE) for details.
 
 Bundled third-party binaries and assets are documented in [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
+
+---
+
+## Fork notes: Hermes pairing + Mobile Bridge status
+
+本 fork 基于上游 `main`（提交 `8562cea`，`v2.4.9.1+58`），改动集中在 **Hermes 后端的配对流程**、**Mobile Bridge 运维体验**
+和几个确定性 bug。仓库名保持 `openclaw-assistant` 以保留 fork 关系，App 名称仍是 WakeHermesClaw，`applicationId` 未改。
+
+### 1. 配对流程（Hermes 后端）
+
+桌面端助手在 [`integrations/agentvoice-pair/`](integrations/agentvoice-pair/)：
+PowerShell 版 [`agentvoice-pair.ps1`](integrations/agentvoice-pair/agentvoice-pair.ps1)、
+bash 版 [`agentvoice-pair.sh`](integrations/agentvoice-pair/agentvoice-pair.sh)、
+安装器 [`install.ps1`](integrations/agentvoice-pair/install.ps1) / [`install.sh`](integrations/agentvoice-pair/install.sh)。
+零依赖：二维码编码器（Reed-Solomon / mask / 格式位）与 PNG 写入（含 CRC32/Adler32）都在脚本里，自带 `-SelfTest` 向量校验。
+
+装好后默认生成**深链**二维码并打开图片：
+
+```powershell
+# Windows
+agentvoice-pair -DeepLinkQr -Open
+# Linux / macOS
+agentvoice-pair --deeplink-qr --open
+```
+
+深链形如
+`agentvoice://setup?hu=<API地址>&hk=<key>&hm=default&hr=1&hs=1&htu=<dashboard地址>&htt=<session token>`，
+**App 内相机与系统相机都能扫**，点开链接即回到 App 完成导入。
+
+App 侧另有一条不依赖相机的路：首启向导 "One QR sets up WakeHermesClaw" 一节末尾有"粘贴配对信息"输入框，
+粘 JSON 载荷或 `agentvoice://` 深链都能解析（复用同一个 `parsePairingPayload`），
+适合相机/中转 App 会截断或再编码长链接的机型。
+
+> 二维码里含 Hermes API key 与 dashboard session token，等同密码，请勿外发。
+
+### 2. 改动清单（相对上游 `8562cea`）
+
+| 位置 | 改动 |
+| --- | --- |
+| `backend/HermesConfigApi.kt`, `ui/cron/CronScreen.kt` | cron 修复：`HermesCronSchedule.expr` 改为可空，补 `minutes` / `run_at`（Hermes 的 interval / once 任务没有 `expr`，原定义会让整个 cron 列表反序列化失败） |
+| `ui/backend/BackendEditorActivity.kt` | 新增 Terminal（Hermes dashboard）URL 与 session token 字段；"Hermes 目标"（profile）提到 Agent Context 第一行 |
+| `ui/SetupGuideScreen.kt` | 首启向导首页"下一步"下方加 Skip（小字下划线）；Hermes 卡加"粘贴配对信息"；向导文案按真实流程重写 |
+| `ui/SetupGuideActivity.kt`（新增） | 设置 → 连接 里"重新运行设置向导"的宿主 Activity |
+| `ui/setup/DesktopOs.kt`（新增） | Windows / Linux·macOS 命令切换（集中管理，避免各屏口径不一） |
+| `ui/setup/ScanHelp.kt`（新增） | 扫码不可用/取消/权限/内容不符分别给可操作弹窗，替代原来一句 "Please update Google Play Services" |
+| `ui/setup/HermesImportActivity.kt` | URL 参数容忍被再编码一次（`hu=https%3A%2F%2F…`）；解析失败时显示收到的链接（key/token 掩码） |
+| `bridge/MobileBridgeService.kt`, `SettingsActivity.kt` | 设置页按 Save 时若桥在运行则用新配置重启（`bindMode`/`port` 只在 server `start()` 时读取） |
+| `app/build.gradle.kts`, `SettingsActivity.kt` | build 标记：设置页底部显示 `<git 短哈希>.<构建时间>`，用于区分同一 tag 下的不同编译产物 |
+| `integrations/agentvoice-pair/*` | 桌面端助手（PowerShell + bash，含 README 与安装器） |
+| `app/src/test/.../PairingUriParseTest.kt`（新增） | 深链解析的 Robolectric 单测（query 形式、再编码容忍、非法输入拒绝） |
+| `gradle/wrapper/gradle-wrapper.properties` | 指向腾讯云镜像（中国大陆构建速度考虑）；改回官方源只需还原 `distributionUrl` |
+
+### 3. Mobile Bridge 能力实测表
+
+设备 nubia NX779J / Android 16 / App `2.4.9.1-58`。/manifest 暴露 32 项能力，源码里共 34 个实现。
+自测脚本：[`integrations/hermes-mobile-bridge/tools/test_all_capabilities.py`](integrations/hermes-mobile-bridge/tools/test_all_capabilities.py)
+（只测无副作用或可还原的：写操作先读原值、测完写回）。
+
+| 能力 | 分组/风险 | 实测结果 | 结论 |
+| --- | --- | --- | --- |
+| device.info | device/LOW | completed：nubia NX779J / Android 16 / sdkInt 36 | 正常 |
+| apps.list | apps/LOW | completed：19 个应用 | 正常 |
+| wifi.status | device/LOW | completed：wifiEnabled=true | 正常 |
+| location.get | device/MEDIUM | completed：返回经纬度 | 正常 |
+| notifications.active.list | notifications/MEDIUM | completed：拿到实时通知 | 正常 |
+| audio.volume.get / set | device/LOW/MEDIUM | 读到 50/150；设为 1 生效后还原 | 正常（可还原） |
+| brightness.get | device/LOW | completed：175/255 | 正常 |
+| clipboard.read / write | clipboard/LOW/MEDIUM | 读到原文；写入生效后还原 | 正常（可还原） |
+| screen.window.describe | accessibility/LOW | completed：前台包名 + 标题 | 正常 |
+| screen.hash / diff | accessibility/LOW | completed：返回 hash，可与上次比较 | 正常（链式） |
+| screen.find_nodes / describe_node | accessibility/LOW | completed：按 text/class/clickable 查找并读节点 | 正常（链式） |
+| screen.home | accessibility/LOW | completed：回到桌面 | 正常 |
+| screen.screenshot | accessibility/HIGH | 只回 `{"ok":true,"hint":"…takeScreenshot()"}` | **占位**：bitmap 被丢弃，取不回图像 |
+| apps.launch | apps/MEDIUM | 回 `{"launched":true}`，但 1/3/6 秒后前台仍是桌面（两个 App 均如此） | **有 bug**：后台 `startActivity` 被 Android 10+ 静默拦截 |
+| camera.capture_photo | camera/HIGH | `{"status":"failed","error":"unsupported_capability"}` | **占位**：`isAvailable=false`，不在 /manifest |
+
+以下能力代码是真实现，但本次**未实测**（都会产生真实副作用）：`screen.tap` / `swipe` / `long_press` / `drag`
+（会真的点在手机上）、`screen.back`、`media.play_pause` / `next` / `previous`（会切歌）、`notification.dismiss`
+（消除真实通知）、`sms.send`、`contacts.create` / `delete`、`calendar.create` / `delete`。另 `brightness.set`
+运行时不可见（`isAvailable=false`，需 `WRITE_SETTINGS`）。
+
+结论：设备/系统读取、剪贴板读写、通知读取、无障碍读屏与 Home/Back 这类全局动作都稳定可用；
+图像相关的两条路（相机、截图）在上游都是占位；`apps.launch` 静默失败。
+验证能力是否真生效**必须**用 `screen.window.describe` 看前台包名，不能只看返回值。
+
+### 4. 构建
+
+- JDK 17 + Android SDK（`compileSdk 35`、`build-tools 35.0.0`）。
+- 在 `app/` 下放 `google-services.json`（可从 `google-services.json.example` 复制）；CI 或本地构建可设
+  `FIREBASE_ENABLED=false` 跳过 Firebase。
+- 构建 debug 包：`./gradlew assembleStandardDebug`，产物在 `app/build/outputs/apk/standard/debug/`。
+- 单测：`./gradlew testStandardDebugUnitTest`（含 `PairingUriParseTest`，Robolectric 需要下载 android-all 制品，
+  国内可加 init 脚本把 `robolectric.dependency.repo.url` 指向镜像）。
+
+### 5. 已知问题（上游同样存在）
+
+- `apps.launch` 后台启动 Activity 被系统拦截，返回值仍是 `launched: true`。
+- `camera.capture_photo` 与 `screen.screenshot` 都是占位实现，经桥拿不到任何图像；要真图片需自行实现
+  （CameraX 拍照回传，或把无障碍截图的 bitmap 回传）。
+- 自编译包（不同包名）拿不到 Google Play 的 ML Kit 扫码模块，内置扫码可能不可用 —— 用深链二维码 + 系统相机即可绕过。
+
+### 6. 许可与出处
+
+上游为 **MIT**（[`LICENSE`](LICENSE)，Copyright (c) 2026 yuga-hashimoto）；本 fork 保留原许可与版权声明，
+新增改动同样以 MIT 发布。第三方组件与随包资源见 [`THIRD_PARTY_LICENSES.md`](THIRD_PARTY_LICENSES.md)。
 
 ---
 

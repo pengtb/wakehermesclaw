@@ -18,6 +18,7 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.util.concurrent.TimeUnit
 
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 data class HermesModelOption(
@@ -28,8 +29,13 @@ data class HermesModelOption(
 @Serializable
 data class HermesCronSchedule(
     val kind: String? = null,
-    val expr: String,
-    val display: String? = null
+    // Hermes 的 schedule 有三种：cron{expr} / interval{minutes} / once{run_at}。
+    // expr 只有 cron 才有——声明成非空会让整页反序列化抛
+    // "field expr is required for type with serial name ...HermesCronSchedule, but it was missing"
+    val expr: String? = null,
+    val display: String? = null,
+    val minutes: Int? = null,
+    @SerialName("run_at") val runAt: String? = null
 )
 
 @Serializable

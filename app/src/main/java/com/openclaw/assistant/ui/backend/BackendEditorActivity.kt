@@ -93,6 +93,9 @@ fun BackendEditorScreen(existingId: String?, onDone: () -> Unit) {
     var lanUrl by remember { mutableStateOf(existing?.secondaryUrls?.getOrNull(0).orEmpty()) }
     var tailscaleUrl by remember { mutableStateOf(existing?.secondaryUrls?.getOrNull(1).orEmpty()) }
     var publicUrl by remember { mutableStateOf(existing?.secondaryUrls?.getOrNull(2).orEmpty()) }
+    // Terminal = Hermes dashboard（/api/pty WebSocket），与 API 后端是两套凭据
+    var terminalUrl by remember { mutableStateOf(existing?.terminalUrl.orEmpty()) }
+    var terminalSessionToken by remember { mutableStateOf(existing?.terminalSessionToken.orEmpty()) }
     var status by remember { mutableStateOf<String?>(null) }
     var hermesModels by remember { mutableStateOf<List<HermesModelOption>>(emptyList()) }
     var hermesProviders by remember { mutableStateOf<List<String>>(emptyList()) }
@@ -126,6 +129,12 @@ fun BackendEditorScreen(existingId: String?, onDone: () -> Unit) {
             Spacer(Modifier.height(8.dp))
             Text(stringResource(R.string.backend_agent_context), style = MaterialTheme.typography.labelLarge)
             Spacer(Modifier.height(4.dp))
+            if (type == BackendType.HERMES_API_SERVER) {
+                // Hermes 目标（profile/model）：放 Agent Context 第一行
+                OutlinedTextField(value = modelName, onValueChange = { modelName = it }, label = { Text(stringResource(R.string.av_import_model)) }, modifier = Modifier.fillMaxWidth())
+                Text(stringResource(R.string.av_import_model_help), style = MaterialTheme.typography.bodySmall)
+                Spacer(Modifier.height(4.dp))
+            }
             OutlinedTextField(
                 value = agentContextName,
                 onValueChange = { agentContextName = it },
@@ -193,13 +202,18 @@ fun BackendEditorScreen(existingId: String?, onDone: () -> Unit) {
                     OutlinedTextField(value = publicUrl, onValueChange = { publicUrl = it }, label = { Text(stringResource(R.string.backend_public_url)) }, modifier = Modifier.fillMaxWidth())
                     Spacer(Modifier.height(8.dp))
                     OutlinedTextField(value = token, onValueChange = { token = it }, label = { Text(stringResource(R.string.av_import_api_key)) }, modifier = Modifier.fillMaxWidth())
+                    Spacer(Modifier.height(12.dp))
+                    Text(stringResource(R.string.backend_terminal_section), style = MaterialTheme.typography.labelLarge)
+                    Spacer(Modifier.height(4.dp))
+                    Text(stringResource(R.string.backend_terminal_section_help), style = MaterialTheme.typography.bodySmall)
+                    Spacer(Modifier.height(4.dp))
+                    OutlinedTextField(value = terminalUrl, onValueChange = { terminalUrl = it }, label = { Text(stringResource(R.string.backend_terminal_url)) }, modifier = Modifier.fillMaxWidth())
+                    Spacer(Modifier.height(4.dp))
+                    OutlinedTextField(value = terminalSessionToken, onValueChange = { terminalSessionToken = it }, label = { Text(stringResource(R.string.backend_terminal_token)) }, modifier = Modifier.fillMaxWidth())
                     Spacer(Modifier.height(8.dp))
-                    OutlinedTextField(value = modelName, onValueChange = { modelName = it }, label = { Text(androidx.compose.ui.res.stringResource(com.openclaw.assistant.R.string.av_import_model)) }, modifier = Modifier.fillMaxWidth())
-                    Text(androidx.compose.ui.res.stringResource(com.openclaw.assistant.R.string.av_import_model_help), style = MaterialTheme.typography.bodySmall)
-                    Spacer(Modifier.height(6.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedButton(onClick = {
-                            val config = buildConfig(existing, type, displayName, baseUrl, token, host, port, useTls, modelName, useRunsApi, useStreaming, setPrimary, listOf(lanUrl, tailscaleUrl, publicUrl).filter { it.isNotBlank() }, agentContextName, agentContextDetail, preferredEndpointRole)
+                            val config = buildConfig(existing, type, displayName, baseUrl, token, host, port, useTls, modelName, useRunsApi, useStreaming, setPrimary, listOf(lanUrl, tailscaleUrl, publicUrl).filter { it.isNotBlank() }, agentContextName, agentContextDetail, preferredEndpointRole, terminalUrl = terminalUrl, terminalSessionToken = terminalSessionToken)
                             scope.launch {
                                 status = loadingHermesModels
                                 runCatching { HermesConfigApi().fetchCatalog(config) }
@@ -219,7 +233,7 @@ fun BackendEditorScreen(existingId: String?, onDone: () -> Unit) {
                             Text(stringResource(R.string.backend_load_models))
                         }
                         OutlinedButton(onClick = {
-                            val config = buildConfig(existing, type, displayName, baseUrl, token, host, port, useTls, modelName, useRunsApi, useStreaming, setPrimary, listOf(lanUrl, tailscaleUrl, publicUrl).filter { it.isNotBlank() }, agentContextName, agentContextDetail, preferredEndpointRole)
+                            val config = buildConfig(existing, type, displayName, baseUrl, token, host, port, useTls, modelName, useRunsApi, useStreaming, setPrimary, listOf(lanUrl, tailscaleUrl, publicUrl).filter { it.isNotBlank() }, agentContextName, agentContextDetail, preferredEndpointRole, terminalUrl = terminalUrl, terminalSessionToken = terminalSessionToken)
                             scope.launch {
                                 status = applyingHermesModel
                                 runCatching { HermesConfigApi().updateModel(config, modelName) }
@@ -297,14 +311,14 @@ fun BackendEditorScreen(existingId: String?, onDone: () -> Unit) {
             val secondary = listOf(lanUrl, tailscaleUrl, publicUrl).filter { it.isNotBlank() }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(onClick = {
-                    val config = buildConfig(existing, type, displayName, baseUrl, token, host, port, useTls, modelName, useRunsApi, useStreaming, setPrimary, secondary, agentContextName, agentContextDetail, preferredEndpointRole)
+                    val config = buildConfig(existing, type, displayName, baseUrl, token, host, port, useTls, modelName, useRunsApi, useStreaming, setPrimary, secondary, agentContextName, agentContextDetail, preferredEndpointRole, terminalUrl = terminalUrl, terminalSessionToken = terminalSessionToken)
                     repo.upsert(config)
                     if (setPrimary) repo.setPrimary(config.id)
                     onDone()
                 }) { Text(stringResource(R.string.save)) }
 
                 Button(onClick = {
-                    val config = buildConfig(existing, type, displayName, baseUrl, token, host, port, useTls, modelName, useRunsApi, useStreaming, setPrimary, secondary, agentContextName, agentContextDetail, preferredEndpointRole)
+                    val config = buildConfig(existing, type, displayName, baseUrl, token, host, port, useTls, modelName, useRunsApi, useStreaming, setPrimary, secondary, agentContextName, agentContextDetail, preferredEndpointRole, terminalUrl = terminalUrl, terminalSessionToken = terminalSessionToken)
                     scope.launch {
                         status = testingLabel
                         val r = withContext(Dispatchers.IO) { AgentClientFactory.create(config).testConnection() }
@@ -335,6 +349,8 @@ private fun buildConfig(
     agentContextName: String = "",
     agentContextDetail: String = "",
     preferredEndpointRole: String = "",
+    terminalUrl: String = "",
+    terminalSessionToken: String = "",
 ): AgentBackendConfig {
     val base = existing ?: AgentBackendConfig(displayName = displayName, type = type)
     return base.copy(
@@ -353,6 +369,8 @@ private fun buildConfig(
         agentContextName = agentContextName.ifBlank { null },
         agentContextDetail = agentContextDetail.ifBlank { null },
         preferredEndpointRole = preferredEndpointRole.ifBlank { null },
+        terminalUrl = terminalUrl.trim().ifBlank { null },
+        terminalSessionToken = terminalSessionToken.trim().ifBlank { null },
     )
 }
 

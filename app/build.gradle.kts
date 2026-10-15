@@ -1,3 +1,6 @@
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import java.util.Properties
 import java.util.concurrent.TimeUnit
 
@@ -43,6 +46,17 @@ fun getTagVersionCode(): Int {
     return try { count.toInt() } catch (e: Exception) { 1 }
 }
 
+/**
+ * 构建标记：git 短哈希 + 构建时刻（本地时间 MMdd-HHmm）。
+ * 同一 tag 下反复编译的包 versionName 完全相同，靠它才能分辨"手机里装的是哪一次编译"。
+ */
+fun getBuildTag(): String {
+    val hash = executeCommand("git", "rev-parse", "--short", "HEAD").ifBlank { "nogit" }
+    // 注意：在 .kts 里不能写 java.text.SimpleDateFormat —— Project 上有名为 java 的扩展，会把 java.text 解析成它。
+    val stamp = SimpleDateFormat("MMdd-HHmm", Locale.US).format(Date())
+    return "$hash.$stamp"
+}
+
 android {
     namespace = "com.openclaw.assistant"
     compileSdk = 35
@@ -53,6 +67,10 @@ android {
         targetSdk = 34
         versionCode = getTagVersionCode()
         versionName = getTagName()
+
+        // 自编译包用：git 短哈希 + 构建时间。versionName 在同一 tag 的所有构建里都一样，
+        // 光看版本号分不出装的是哪一次编译（排查"这版到底带没带某个修复"时很要命）。
+        buildConfigField("String", "BUILD_TAG", "\"${getBuildTag()}\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {

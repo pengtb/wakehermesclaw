@@ -27,11 +27,14 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -46,6 +49,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import com.openclaw.assistant.R
 import com.openclaw.assistant.backend.AgentBackendConfig
@@ -110,6 +114,20 @@ private fun SimpleSetupWizard(onDone: () -> Unit) {
                     Button(onClick = onDone) { Text(stringResource(R.string.av_setup_finish)) }
                 }
             }
+            // 跳过整个向导：小字 + 下划线，放在按钮下方居中，不抢主按钮的注意力
+            if (step < totalSteps - 1) {
+                Spacer(Modifier.height(4.dp))
+                TextButton(
+                    onClick = onDone,
+                    modifier = Modifier.align(Alignment.CenterHorizontally),
+                ) {
+                    Text(
+                        text = stringResource(R.string.av_setup_skip),
+                        style = MaterialTheme.typography.bodySmall,
+                        textDecoration = TextDecoration.Underline,
+                    )
+                }
+            }
         }
     }
 }
@@ -170,8 +188,12 @@ private fun UnifiedPairingCard(includeHermes: Boolean, includeOpenClaw: Boolean)
     val context = LocalContext.current
     var status by remember { mutableStateOf<String?>(null) }
     var pairingReview by remember { mutableStateOf<EditablePairingPayload?>(null) }
-    val installCommand = "curl -fsSL https://raw.githubusercontent.com/yuga-hashimoto/openclaw-assistant/main/integrations/agentvoice-pair/install.sh | bash"
-    val pairCommand = "agentvoice-pair"
+    var scanIssue by remember { mutableStateOf<ScanIssue?>(null) }
+    var pasteText by remember { mutableStateOf("") }
+    var pasteError by remember { mutableStateOf<String?>(null) }
+    var desktopOs by remember { mutableStateOf(DesktopOs.UNIX) }
+    val installCommand = AgentVoiceCommands.install(desktopOs)
+    val pairCommand = AgentVoiceCommands.run(desktopOs)
     val scopeText = when {
         includeHermes && includeOpenClaw -> stringResource(R.string.av_setup_scope_both)
         includeHermes -> stringResource(R.string.av_setup_scope_hermes)
@@ -185,7 +207,16 @@ private fun UnifiedPairingCard(includeHermes: Boolean, includeOpenClaw: Boolean)
             Text(scopeText, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.height(8.dp))
             Text(stringResource(R.string.av_pairing_card_step1), style = MaterialTheme.typography.bodyMedium)
+            DesktopOsSelector(os = desktopOs, onChange = { desktopOs = it })
+            Spacer(Modifier.height(8.dp))
             CopyCommandBlock(installCommand)
+            Text(
+                when (desktopOs) {
+                    DesktopOs.WINDOWS -> stringResource(R.string.av_setup_install_win_note)
+                    DesktopOs.UNIX -> stringResource(R.string.av_setup_install_unix_note)
+                },
+                style = MaterialTheme.typography.bodySmall,
+            )
             Spacer(Modifier.height(8.dp))
             Text(stringResource(R.string.av_pairing_card_step2), style = MaterialTheme.typography.bodyMedium)
             CopyCommandBlock(pairCommand)
@@ -211,17 +242,16 @@ private fun UnifiedPairingCard(includeHermes: Boolean, includeOpenClaw: Boolean)
                             } else if (raw.startsWith("agentvoice://")) {
                                 context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(raw)))
                             } else {
-                                android.widget.Toast.makeText(
-                                    context,
-                                    context.getString(R.string.qr_scan_unavailable),
-                                    android.widget.Toast.LENGTH_LONG
-                                ).show()
+                                scanIssue = ScanIssue.UNKNOWN_PAYLOAD
                             }
                         }
-                        .addOnFailureListener { /* cancelled */ }
+                        .addOnFailureListener { error -> scanIssueOf(error)?.let { scanIssue = it } }
                 },
                 modifier = Modifier.fillMaxWidth(),
             ) { Text(stringResource(R.string.av_pairing_scan_qr)) }
+            scanIssue?.let { issue ->
+                ScanHelpDialog(issue = issue, onDismiss = { scanIssue = null })
+            }
             pairingReview?.let { draft ->
                 Spacer(Modifier.height(12.dp))
                 PairingPayloadReviewEditor(
@@ -245,6 +275,47 @@ private fun UnifiedPairingCard(includeHermes: Boolean, includeOpenClaw: Boolean)
             status?.let {
                 Spacer(Modifier.height(8.dp))
                 Text(it, style = MaterialTheme.typography.bodySmall)
+            }
+
+            // 本节最后一条路：直接粘贴载荷（JSON 或 agentvoice:// 深链都能解析），
+            // 完全不经过相机与中转 App。
+            HorizontalDivider()
+            Text(
+                stringResource(R.string.setup_guide_paste_payload_label),
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            OutlinedTextField(
+                value = pasteText,
+                onValueChange = { pasteText = it; pasteError = null },
+                placeholder = { Text(stringResource(R.string.setup_guide_paste_payload_hint)) },
+                modifier = Modifier.fillMaxWidth(),
+                minLines = 2,
+                maxLines = 5,
+                textStyle = MaterialTheme.typography.bodySmall.copy(
+                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                ),
+            )
+            OutlinedButton(
+                onClick = {
+                    val payload = parsePairingPayload(pasteText)
+                    if (payload != null) {
+                        pairingReview = payload.toEditablePairingPayload()
+                        status = context.getString(R.string.av_pairing_review_loaded)
+                        pasteError = null
+                    } else {
+                        pasteError = context.getString(R.string.setup_guide_paste_payload_invalid)
+                    }
+                },
+                enabled = pasteText.isNotBlank(),
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text(stringResource(R.string.setup_guide_paste_payload_apply)) }
+            pasteError?.let { message ->
+                Text(
+                    text = message,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
             }
         }
     }

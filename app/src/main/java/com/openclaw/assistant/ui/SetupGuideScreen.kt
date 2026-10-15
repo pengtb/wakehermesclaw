@@ -50,6 +50,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -63,6 +64,12 @@ import com.openclaw.assistant.backend.AgentMessage
 import com.openclaw.assistant.backend.AgentSendOptions
 import com.openclaw.assistant.backend.AgentBackendConfig
 import com.openclaw.assistant.backend.BackendRepository
+import com.openclaw.assistant.ui.setup.AgentVoiceCommands
+import com.openclaw.assistant.ui.setup.ScanHelpDialog
+import com.openclaw.assistant.ui.setup.ScanIssue
+import com.openclaw.assistant.ui.setup.scanIssueOf
+import com.openclaw.assistant.ui.setup.DesktopOs
+import com.openclaw.assistant.ui.setup.DesktopOsSelector
 import com.openclaw.assistant.backend.BackendType
 import com.openclaw.assistant.backend.PrimaryBackendDispatcher
 import com.openclaw.assistant.data.SettingsRepository
@@ -309,7 +316,8 @@ fun SetupGuideScreen(
 
             when (currentStep) {
                 SetupStep.Welcome -> WelcomeStep(
-                    onNext = { currentStep = SetupStep.Connection }
+                    onNext = { currentStep = SetupStep.Connection },
+                    onSkip = onComplete,
                 )
                 SetupStep.Connection -> ConnectionStep(
                     mode = connectionMode,
@@ -433,7 +441,7 @@ fun SetupGuideScreen(
 }
 
 @Composable
-private fun WelcomeStep(onNext: () -> Unit) {
+private fun WelcomeStep(onNext: () -> Unit, onSkip: () -> Unit) {
     Column(modifier = Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
         Column(
             modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()),
@@ -471,6 +479,15 @@ private fun WelcomeStep(onNext: () -> Unit) {
             colors = ButtonDefaults.buttonColors(containerColor = OnboardingGradientMid)
         ) {
             Text(stringResource(R.string.setup_guide_next), fontSize = 18.sp)
+        }
+        // 跳过向导：小字 + 下划线，紧跟在“下一步”下方；只离开向导，不标记为已完成
+        TextButton(onClick = onSkip) {
+            Text(
+                text = stringResource(R.string.av_setup_skip),
+                style = MaterialTheme.typography.bodySmall,
+                color = OnboardingTextSecondary,
+                textDecoration = TextDecoration.Underline,
+            )
         }
     }
 }
@@ -516,6 +533,8 @@ private fun ConnectionStep(
     val effectiveMode = if (mode == ConnectionMode.Manual) ConnectionMode.SetupCode else mode
     var pairingStatus by rememberSaveable { mutableStateOf<String?>(null) }
     var pairingReview by remember { mutableStateOf<EditablePairingPayload?>(null) }
+    var desktopOs by rememberSaveable { mutableStateOf(DesktopOs.UNIX) }
+    var scanIssue by remember { mutableStateOf<ScanIssue?>(null) }
 
     Column(modifier = Modifier.fillMaxSize()) {
         // スクロール可能なコンテンツ部分
@@ -540,7 +559,13 @@ private fun ConnectionStep(
         Spacer(modifier = Modifier.height(24.dp))
 
         if (effectiveMode == ConnectionMode.Hermes) {
-            AgentVoiceUnifiedPairingContent(configuredBackendCount = configuredBackendCount)
+            AgentVoiceUnifiedPairingContent(
+                configuredBackendCount = configuredBackendCount,
+                onPayloadParsed = { payload ->
+                    pairingReview = payload.toEditablePairingPayload()
+                    pairingStatus = context.getString(R.string.av_pairing_review_loaded)
+                },
+            )
             pairingReview?.let { draft ->
                 Spacer(modifier = Modifier.height(16.dp))
                 PairingPayloadReviewEditor(
@@ -568,7 +593,12 @@ private fun ConnectionStep(
                 color = OnboardingTextSecondary
             )
             Spacer(modifier = Modifier.height(8.dp))
-            CommandBlock("agentvoice-pair")
+            DesktopOsSelector(
+                os = desktopOs,
+                onChange = { desktopOs = it },
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            CommandBlock(AgentVoiceCommands.run(desktopOs))
             Spacer(modifier = Modifier.height(8.dp))
 
             OutlinedButton(
@@ -604,22 +634,13 @@ private fun ConnectionStep(
                                             }
                                         }
                                     }
-                                    .addOnFailureListener { /* scan cancelled or failed — no action needed */ }
+                                    .addOnFailureListener { error -> scanIssueOf(error)?.let { scanIssue = it } }
                             } else {
-                                android.widget.Toast.makeText(
-                                    context,
-                                    context.getString(R.string.qr_scan_unavailable),
-                                    android.widget.Toast.LENGTH_LONG
-                                ).show()
+                                // 模块没装（自编译包的常见情况）：提示改用手机相机扫深链二维码
+                                scanIssue = ScanIssue.MODULE_MISSING
                             }
                         }
-                        .addOnFailureListener {
-                            android.widget.Toast.makeText(
-                                context,
-                                context.getString(R.string.qr_scan_unavailable),
-                                android.widget.Toast.LENGTH_LONG
-                            ).show()
-                        }
+                        .addOnFailureListener { error -> scanIssueOf(error)?.let { scanIssue = it } }
                 },
                 modifier = Modifier.fillMaxWidth().height(56.dp),
                 shape = RoundedCornerShape(16.dp),
@@ -631,6 +652,10 @@ private fun ConnectionStep(
                 Icon(Icons.Default.QrCodeScanner, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(stringResource(R.string.qr_scan_prompt), fontSize = 16.sp)
+            }
+
+            scanIssue?.let { issue ->
+                ScanHelpDialog(issue = issue, onDismiss = { scanIssue = null })
             }
 
             // Show scan result
@@ -763,7 +788,14 @@ private fun ConnectionStep(
 }
 
 @Composable
-private fun AgentVoiceUnifiedPairingContent(configuredBackendCount: Int) {
+private fun AgentVoiceUnifiedPairingContent(
+    configuredBackendCount: Int,
+    onPayloadParsed: ((com.openclaw.assistant.ui.setup.PairingPayload) -> Unit)? = null,
+) {
+    var desktopOs by rememberSaveable { mutableStateOf(DesktopOs.UNIX) }
+    val context = LocalContext.current
+    var pasteText by rememberSaveable { mutableStateOf("") }
+    var pasteError by remember { mutableStateOf<String?>(null) }
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Card(
             modifier = Modifier.fillMaxWidth(),
@@ -778,9 +810,10 @@ private fun AgentVoiceUnifiedPairingContent(configuredBackendCount: Int) {
                     fontWeight = FontWeight.Bold
                 )
                 Text(stringResource(R.string.av_pairing_card_step1), style = MaterialTheme.typography.bodyMedium, color = OnboardingTextPrimary)
-                CommandBlock("curl -fsSL https://raw.githubusercontent.com/yuga-hashimoto/openclaw-assistant/main/integrations/agentvoice-pair/install.sh | bash")
+                DesktopOsSelector(os = desktopOs, onChange = { desktopOs = it })
+                CommandBlock(AgentVoiceCommands.install(desktopOs))
                 Text(stringResource(R.string.av_pairing_card_step2), style = MaterialTheme.typography.bodyMedium, color = OnboardingTextPrimary)
-                CommandBlock("agentvoice-pair")
+                CommandBlock(AgentVoiceCommands.run(desktopOs))
                 Text(stringResource(R.string.av_pairing_card_step3), style = MaterialTheme.typography.bodyMedium, color = OnboardingTextPrimary)
                 Text(stringResource(R.string.av_pairing_card_note), style = MaterialTheme.typography.bodySmall, color = OnboardingTextSecondary)
                 if (configuredBackendCount > 0) {
@@ -791,6 +824,49 @@ private fun AgentVoiceUnifiedPairingContent(configuredBackendCount: Int) {
                             Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(18.dp))
                         }
                     )
+                }
+
+                if (onPayloadParsed != null) {
+                    // 第三节末尾：扫码之外的第二条路。直接把载荷粘进来——有些 ROM 的相机/扫码 App
+                    // 会把长链接截断或再编码，这条完全不经过中转（JSON 与 agentvoice:// 深链都认）。
+                    HorizontalDivider()
+                    Text(
+                        stringResource(R.string.setup_guide_paste_payload_label),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = OnboardingTextPrimary,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    OutlinedTextField(
+                        value = pasteText,
+                        onValueChange = { pasteText = it; pasteError = null },
+                        placeholder = { Text(stringResource(R.string.setup_guide_paste_payload_hint)) },
+                        modifier = Modifier.fillMaxWidth(),
+                        minLines = 2,
+                        maxLines = 5,
+                        textStyle = MaterialTheme.typography.bodySmall.copy(
+                            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                        ),
+                    )
+                    OutlinedButton(
+                        onClick = {
+                            val payload = com.openclaw.assistant.ui.setup.parsePairingPayload(pasteText)
+                            if (payload != null) {
+                                onPayloadParsed(payload)
+                                pasteError = null
+                            } else {
+                                pasteError = context.getString(R.string.setup_guide_paste_payload_invalid)
+                            }
+                        },
+                        enabled = pasteText.isNotBlank(),
+                        modifier = Modifier.fillMaxWidth(),
+                    ) { Text(stringResource(R.string.setup_guide_paste_payload_apply)) }
+                    pasteError?.let { message ->
+                        Text(
+                            text = message,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
                 }
             }
         }
@@ -803,35 +879,36 @@ private fun PairingScanButton(
     onScanned: (com.openclaw.assistant.ui.setup.PairingPayload) -> Unit
 ) {
     val context = LocalContext.current
+    var scanIssue by remember { mutableStateOf<ScanIssue?>(null) }
     OutlinedButton(
         onClick = {
             val options = GmsBarcodeScannerOptions.Builder()
                 .setBarcodeFormats(Barcode.FORMAT_QR_CODE)
                 .build()
             val scanner = GmsBarcodeScanning.getClient(context, options)
-            scanner.startScan()
-                .addOnSuccessListener { barcode ->
-                    val raw = barcode.rawValue?.trim().orEmpty()
-                    val pairingPayload = parsePairingPayload(raw)
-                    if (pairingPayload != null) {
-                        onScanned(pairingPayload)
-                    } else if (raw.startsWith("agentvoice://")) {
-                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(raw)))
-                    } else {
-                        android.widget.Toast.makeText(
-                            context,
-                            context.getString(R.string.qr_scan_unavailable),
-                            android.widget.Toast.LENGTH_LONG
-                        ).show()
+            // 先问模块在不在：自编译包（不同包名）常常没下过 ML Kit 扫码模块，直接 startScan 会失败得很含糊
+            ModuleInstall.getClient(context)
+                .areModulesAvailable(scanner)
+                .addOnSuccessListener { response ->
+                    if (!response.areModulesAvailable()) {
+                        scanIssue = ScanIssue.MODULE_MISSING
+                        return@addOnSuccessListener
                     }
+                    scanner.startScan()
+                        .addOnSuccessListener { barcode ->
+                            val raw = barcode.rawValue?.trim().orEmpty()
+                            val pairingPayload = parsePairingPayload(raw)
+                            if (pairingPayload != null) {
+                                onScanned(pairingPayload)
+                            } else if (raw.startsWith("agentvoice://")) {
+                                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(raw)))
+                            } else {
+                                scanIssue = ScanIssue.UNKNOWN_PAYLOAD
+                            }
+                        }
+                        .addOnFailureListener { error -> scanIssueOf(error)?.let { scanIssue = it } }
                 }
-                .addOnFailureListener {
-                    android.widget.Toast.makeText(
-                        context,
-                        context.getString(R.string.qr_scan_unavailable),
-                        android.widget.Toast.LENGTH_LONG
-                    ).show()
-                }
+                .addOnFailureListener { error -> scanIssueOf(error)?.let { scanIssue = it } }
         },
         modifier = modifier,
         shape = RoundedCornerShape(14.dp),
@@ -841,6 +918,10 @@ private fun PairingScanButton(
         Icon(Icons.Default.QrCodeScanner, contentDescription = null)
         Spacer(modifier = Modifier.width(8.dp))
         Text(stringResource(R.string.av_pairing_scan_qr))
+    }
+
+    scanIssue?.let { issue ->
+        ScanHelpDialog(issue = issue, onDismiss = { scanIssue = null })
     }
 }
 
