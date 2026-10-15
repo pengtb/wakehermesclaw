@@ -1,5 +1,6 @@
 package com.openclaw.assistant
 
+import com.openclaw.assistant.ui.LocaleAwareActivity
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
@@ -7,10 +8,8 @@ import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
-import androidx.appcompat.app.AppCompatDelegate
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.selection.selectable
@@ -38,7 +37,6 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.os.LocaleListCompat
 import com.openclaw.assistant.R
 import com.openclaw.assistant.api.OpenClawClient
 import com.openclaw.assistant.backend.AgentBackendConfig
@@ -200,27 +198,26 @@ object VoiceVoxCharacters {
     fun getDisplayName(id: Int): String = getById(id)?.let { "${it.name}（${it.styleName}）" } ?: "Unknown"
 }
 
-class SettingsActivity : ComponentActivity() {
+class SettingsActivity : LocaleAwareActivity() {
 
     private lateinit var settings: SettingsRepository
 
-    override fun attachBaseContext(newBase: Context) {
-        val tag = try {
-            SettingsRepository.getInstance(newBase).appLanguage.trim()
-        } catch (e: Exception) { "" }
-        if (tag.isNotBlank()) {
-            val locale = java.util.Locale.forLanguageTag(tag)
-            val config = android.content.res.Configuration(newBase.resources.configuration)
-            config.setLocale(locale)
-            super.attachBaseContext(newBase.createConfigurationContext(config))
-        } else {
-            super.attachBaseContext(newBase)
-        }
-    }
+    /**
+     * 语言改变的确认弹窗状态。放在 Activity 上而不是 composition 里：保存流程里可能发生
+     * 重建/配置变更，composition 里的 remember 会跟着没了，弹窗就永远不出现。
+     */
+    private val showLanguageRestart = mutableStateOf(false)
+
+    // 语言：由基类 LocaleAwareActivity 统一在 attachBaseContext 应用（跟随系统 / 指定语言）。
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         settings = SettingsRepository.getInstance(this)
+        langDiag(
+            this,
+            "onCreate applied='$appliedLanguageTag' saved='${settings.appLanguage}' " +
+                "build=${BuildConfig.BUILD_TAG} sdk=${android.os.Build.VERSION.SDK_INT}"
+        )
 
         setContent {
             OpenClawAssistantTheme {
@@ -233,16 +230,21 @@ class SettingsActivity : ComponentActivity() {
                 } else {
                     SettingsScreen(
                         settings = settings,
-                        onSave = {
-                            // 保存时若 Mobile Bridge 正在运行，就用刚保存的配置重启一次：
-                            // bindMode/port 只有 server start() 时才读，不重建 server 就一直用旧值。
-                            val bridgeRestarted = com.openclaw.assistant.bridge.MobileBridgeService.restartIfRunning(this)
-                            val message = if (bridgeRestarted) R.string.saved_bridge_restarted else R.string.saved
-                            Toast.makeText(this, getString(message), Toast.LENGTH_SHORT).show()
-                            finish()
+                        onSave = { languageChanged ->
+                            // 收尾统一走 SettingsSaveSupport（和 MainActivity 的设置标签页共用同一份逻辑）：
+                            // 语言有变化 → 弹「是否立即重启」；桥在跑 → 用新配置重启一次 + Toast
+                            val changed = com.openclaw.assistant.ui.settings.SettingsSaveSupport
+                                .afterSave(this, languageChanged)
+                            if (changed) showLanguageRestart.value = true else finish()
                         },
                         onBack = { finish() },
                         onCredits = { showCredits = true }
+                    )
+                }
+                if (showLanguageRestart.value) {
+                    com.openclaw.assistant.ui.settings.LanguageRestartDialog(
+                        visible = showLanguageRestart,
+                        onRestarted = { finish() }
                     )
                 }
             }
@@ -254,7 +256,7 @@ class SettingsActivity : ComponentActivity() {
 @Composable
 fun SettingsScreen(
     settings: SettingsRepository,
-    onSave: () -> Unit,
+    onSave: (languageChanged: Boolean) -> Unit,
     onBack: () -> Unit,
     onCredits: () -> Unit = {}
 ) {
@@ -273,6 +275,8 @@ fun SettingsScreen(
     var speechSilenceTimeout by rememberSaveable { mutableStateOf(settings.speechSilenceTimeout.toFloat().coerceIn(5000f, 30000f)) }
     var speechLanguage by rememberSaveable { mutableStateOf(settings.speechLanguage) }
     var appLanguage by rememberSaveable { mutableStateOf(settings.appLanguage) }
+    // 本屏打开时的语言值：保存时用它和下拉里的选择比较，判断"语言是不是被改过"
+    val languageWhenOpened = remember { settings.appLanguage }
     var thinkingSoundEnabled by rememberSaveable { mutableStateOf(settings.thinkingSoundEnabled) }
     var fillerPhrasesEnabled by rememberSaveable { mutableStateOf(settings.fillerPhrasesEnabled) }
     var ttsBargeInEnabled by rememberSaveable { mutableStateOf(settings.ttsBargeInEnabled) }
@@ -462,6 +466,12 @@ fun SettingsScreen(
                         }
                         TextButton(
                             onClick = {
+                              try {
+                                langDiag(
+                                    context,
+                                    "save: 点击了保存；state='$appLanguage' openedWith='$languageWhenOpened' " +
+                                        "activity.applied='${(context as? LocaleAwareActivity)?.appliedLanguageTag}'"
+                                )
                                 settings.connectionType = if (openClawTabIndex == 0) {
                                     SettingsRepository.CONNECTION_TYPE_GATEWAY
                                 } else {
@@ -534,7 +544,10 @@ fun SettingsScreen(
                                 settings.ttsBargeInEnabled = ttsBargeInEnabled
                                 settings.wakeWordDebugEnabled = wakeWordDebugEnabled
                                 settings.mediaButtonEnabled = mediaButtonEnabled
-                                applyAppLanguage(appLanguage)
+                                // 注意：这里不要再调 AppCompatDelegate.setApplicationLocales（原来的 applyAppLanguage）。
+                                // 它在 API 33+ 会写系统级 per-app locale 并立刻触发配置变更/重建本界面，
+                                // 于是下面 onSave() 里的对话框状态落在已经销毁的 composition 上 —— 弹窗永远不会出现。
+                                // 语言的落地只靠 LocaleAwareActivity（各界面 attachBaseContext）+ 用户确认后的重启。
 
                                 // Stop/Restart services
                                 HotwordService.stop(context)
@@ -546,7 +559,11 @@ fun SettingsScreen(
                                 if (settings.hotwordEnabled) {
                                     HotwordService.start(context)
                                 }
-                                onSave()
+                                langDiag(context, "save: 各字段已写入，准备调 onSave")
+                                onSave(appLanguage.trim() != languageWhenOpened.trim())
+                              } catch (t: Throwable) {
+                                langDiag(context, "save: 抛异常 ${t::class.java.simpleName}: ${t.message}")
+                              }
                             },
                             enabled = true
                         ) {
@@ -1533,8 +1550,6 @@ fun SettingsScreen(
             if (selectedSettingsCategory == SettingsCategory.WakeWord) {
             CollapsibleSection(title = stringResource(R.string.wake_word), collapsible = false) {
 
-
-
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(
@@ -1714,7 +1729,10 @@ fun SettingsScreen(
                         ) {
                             DISPLAY_LANGUAGE_OPTIONS.forEach { (tag, label) ->
                                 DropdownMenuItem(
-                                    text = { Text(label) },
+                                    // ""（跟随系统）这一条用当前界面语言的文案
+                                    text = {
+                                        Text(if (tag.isEmpty()) stringResource(R.string.display_language_system_default) else label)
+                                    },
                                     onClick = {
                                         appLanguage = tag
                                         showDisplayLanguageMenu = false
@@ -2228,27 +2246,18 @@ private fun AgentBackendConfig.agentContextLabel(): String? {
     return parts.takeIf { it.isNotEmpty() }?.joinToString(" · ")
 }
 
-private fun applyAppLanguage(languageTag: String) {
-    val locales = if (languageTag.isBlank()) {
-        LocaleListCompat.getEmptyLocaleList()
-    } else {
-        LocaleListCompat.forLanguageTags(languageTag)
-    }
-    AppCompatDelegate.setApplicationLocales(locales)
-}
+/**
+ * 语言流程诊断：实现放在 LocaleAwareActivity.langDiag（两个宿主共用）。
+ */
+private fun langDiag(context: Context, line: String) = LocaleAwareActivity.langDiag(context, line)
 
 private val DISPLAY_LANGUAGE_OPTIONS = listOf(
+    // 只列翻译完整的语言（见 README 第 6 节）；各语言用自己的写法，不写国家/地区名。
+    // ja / ko / de / es / fr / hi / ru 的资源仍在包内，但翻译不完整（会混英文），补齐后再加回来。
     "" to "System Default",
-    "en" to "English",
-    "ja-JP" to "Japan（日本）",
-    "zh-CN" to "China（中国）",
-    "zh-TW" to "Taiwan（台灣）",
-    "hi-IN" to "India（भारत）",
-    "de-DE" to "Germany（Deutschland）",
-    "de-AT" to "Austria（Österreich）",
-    "ru-RU" to "Russia（Россия）",
-    "fr" to "Français",
-    "es" to "Español"
+    "zh-CN" to "简体中文",
+    "zh-TW" to "繁體中文",
+    "en" to "English"
 )
 
 // Fallback language list used when device query fails

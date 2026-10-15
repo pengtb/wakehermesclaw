@@ -1,7 +1,7 @@
 package com.openclaw.assistant.bridge
 
+import com.openclaw.assistant.ui.LocaleAwareActivity
 import android.os.Bundle
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -20,7 +20,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
-class BridgeApprovalActivity : ComponentActivity() {
+class BridgeApprovalActivity : LocaleAwareActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val requestId = intent.getStringExtra(EXTRA_REQUEST_ID).orEmpty()

@@ -1,9 +1,9 @@
 package com.openclaw.assistant.ui.setup
 
+import com.openclaw.assistant.ui.LocaleAwareActivity
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -90,7 +90,7 @@ import java.util.Locale
  *   oc is an OpenClaw Gateway setup code, as printed by `openclaw qr`.
  *   oau/oas are an optional short-lived host Terminal command endpoint URL/secret.
  */
-class HermesImportActivity : ComponentActivity() {
+class HermesImportActivity : LocaleAwareActivity() {
     private var importUri by mutableStateOf<Uri?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -503,24 +503,13 @@ internal fun parsePairingUri(uri: Uri): PairingPayload? {
     val openClawSetupCode = uri.getQueryParameter("oc")?.trim()?.ifEmpty { null }
     val terminalCommandUrl = uri.getQueryParameter("oau")?.trim()?.takeIf { it.startsWith("http://") || it.startsWith("https://") }
     val terminalCommandSecret = uri.getQueryParameter("oas")?.trim()?.ifEmpty { null }
-    if (hermes == null && openClawSetupCode == null) {
-        // 备用形式：agentvoice://setup/<base64url(JSON 载荷)>
-        // 有的扫码 App/浏览器会把 query 吃掉或再编码一次，把载荷放"路径"里就能活下来。
-        return decodePathPayload(uri)
-    }
+    if (hermes == null && openClawSetupCode == null) return null
     return PairingPayload(
         hermes = hermes,
         openClawSetupCode = openClawSetupCode,
         terminalCommandUrl = terminalCommandUrl,
         terminalCommandSecret = terminalCommandSecret,
     )
-}
-
-/** 解析 agentvoice://setup/<base64url(JSON)> 这种把载荷放在路径里的深链。 */
-private fun decodePathPayload(uri: Uri): PairingPayload? {
-    val segment = uri.pathSegments.firstOrNull { it.isNotBlank() } ?: return null
-    val decoded = decodeUrlSafeBase64(segment) ?: return null
-    return runCatching { parsePairingJson(decoded) }.getOrNull()
 }
 
 /** 诊断用：把深链里的 key/token 换成 <len=N>，其余原样显示。 */

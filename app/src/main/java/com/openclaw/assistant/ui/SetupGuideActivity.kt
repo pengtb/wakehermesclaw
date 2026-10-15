@@ -1,7 +1,6 @@
 package com.openclaw.assistant.ui
 
 import android.os.Bundle
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import com.openclaw.assistant.data.SettingsRepository
 import com.openclaw.assistant.ui.theme.OpenClawAssistantTheme
@@ -13,7 +12,7 @@ import com.openclaw.assistant.ui.theme.OpenClawAssistantTheme
  * 这个 Activity 让用户随时能重跑一遍（改连接方式、重扫配对码、复查权限等），
  * 完成或跳过即 finish()，返回设置页。
  */
-class SetupGuideActivity : ComponentActivity() {
+class SetupGuideActivity : LocaleAwareActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val settings = SettingsRepository.getInstance(this)

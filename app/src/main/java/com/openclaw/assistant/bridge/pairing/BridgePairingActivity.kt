@@ -1,10 +1,10 @@
 package com.openclaw.assistant.bridge.pairing
 
+import com.openclaw.assistant.ui.LocaleAwareActivity
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.os.Bundle
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -47,7 +47,7 @@ import com.openclaw.assistant.ui.setup.DesktopOsSelector
  * style CLI) and the full `agentvoice://pair?...` URL (for QR scanners that
  * can read it off the screen, or to paste into a desktop pairing tool).
  */
-class BridgePairingActivity : ComponentActivity() {
+class BridgePairingActivity : LocaleAwareActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent { MaterialTheme { BridgePairingScreen() } }

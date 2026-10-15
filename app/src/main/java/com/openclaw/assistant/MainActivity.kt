@@ -1,5 +1,6 @@
 package com.openclaw.assistant
 
+import com.openclaw.assistant.ui.LocaleAwareActivity
 import android.Manifest
 import android.content.ActivityNotFoundException
 import android.content.ClipData
@@ -105,7 +106,7 @@ sealed class AppTab(val route: String, val labelResId: Int, val icon: ImageVecto
     companion object { val BOTTOM_NAV_TABS by lazy { listOf(Home, Chat, Terminal, Cron, Settings) } }
 }
 
-class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
+class MainActivity : LocaleAwareActivity(), TextToSpeech.OnInitListener {
 
     private lateinit var settings: SettingsRepository
     private var tts: TextToSpeech? = null
@@ -165,23 +166,8 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
         refreshAllPermissionsStatus()
     }
 
-    override fun attachBaseContext(newBase: Context) {
-        // ComponentActivity does not participate in AppCompat's locale delegation,
-        // so we must manually apply the saved locale here. This guarantees every
-        // new instance (whether created by recreate() or a system config change)
-        // immediately has the correct locale without relying on timing.
-        val tag = try {
-            SettingsRepository.getInstance(newBase).appLanguage.trim()
-        } catch (e: Exception) { "" }
-        if (tag.isNotBlank()) {
-            val locale = java.util.Locale.forLanguageTag(tag)
-            val config = android.content.res.Configuration(newBase.resources.configuration)
-            config.setLocale(locale)
-            super.attachBaseContext(newBase.createConfigurationContext(config))
-        } else {
-            super.attachBaseContext(newBase)
-        }
-    }
+    // 语言：LocaleAwareActivity 在 attachBaseContext 里统一应用「设置 → 显示语言」，
+    // 这里不再重复实现（原来只有本类与 SettingsActivity 手写了这段，其它界面不跟随设置）。
     private fun handleIntent(intent: Intent?) {
         if (intent?.action == "com.openclaw.assistant.action.ASK_OPENCLAW") {
             val prompt = intent.getStringExtra("prompt")
@@ -486,6 +472,8 @@ fun MainNavHost(
         )
     ) { mutableStateOf<AppTab>(AppTab.Home) }
     var showSettingsCredits by rememberSaveable { mutableStateOf(false) }
+    // 语言改了 → 询问是否立即重启（设置界面在 MainNavHost 里，宿主是 MainActivity 这个 Activity）
+    val showLanguageRestart = remember { mutableStateOf(false) }
 
     val sessionListViewModel: SessionListViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
     val context = LocalContext.current
@@ -597,12 +585,15 @@ fun MainNavHost(
                         val context = LocalContext.current
                         SettingsScreen(
                             settings  = settings,
-                            onSave    = {
-                                android.widget.Toast.makeText(
-                                    context,
-                                    context.getString(R.string.saved),
-                                    android.widget.Toast.LENGTH_SHORT
-                                ).show()
+                            onSave    = { languageChanged ->
+                                // 收尾统一走 SettingsSaveSupport：语言有变化 → 弹「是否立即重启」；
+                                // 桥在跑 → 用新配置重启一次 + Toast（和 SettingsActivity 共用同一份逻辑）
+                                val host = context as? LocaleAwareActivity
+                                val changed = host?.let {
+                                    com.openclaw.assistant.ui.settings.SettingsSaveSupport
+                                        .afterSave(it, languageChanged)
+                                } ?: languageChanged
+                                if (changed) showLanguageRestart.value = true
                             },
                             onBack    = { selectedTab = AppTab.Home },
                             onCredits = { showSettingsCredits = true }
@@ -610,6 +601,9 @@ fun MainNavHost(
                     }
                 }
             }
+
+            // 语言改动的确认弹窗：放在 when 外面，任何标签页下都能弹出来
+            com.openclaw.assistant.ui.settings.LanguageRestartDialog(visible = showLanguageRestart)
         }
     }
 }

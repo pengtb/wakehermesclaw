@@ -1,5 +1,6 @@
 package com.openclaw.assistant.ui.setup
 
+import com.openclaw.assistant.ui.LocaleAwareActivity
 import android.content.Intent
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -9,7 +10,6 @@ import android.os.Bundle
 import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions
 import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -66,7 +66,7 @@ import com.openclaw.assistant.backend.BackendRepository
  *                QR for this app to scan.
  *   Step 4 — Done
  */
-class AgentVoiceSetupActivity : ComponentActivity() {
+class AgentVoiceSetupActivity : LocaleAwareActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent { MaterialTheme { SimpleSetupWizard { finish() } } }

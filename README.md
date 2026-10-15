@@ -404,10 +404,19 @@ App 侧另有一条不依赖相机的路：首启向导 "One QR sets up WakeHerm
 | `ui/setup/DesktopOs.kt`（新增） | Windows / Linux·macOS 命令切换（集中管理，避免各屏口径不一） |
 | `ui/setup/ScanHelp.kt`（新增） | 扫码不可用/取消/权限/内容不符分别给可操作弹窗，替代原来一句 "Please update Google Play Services" |
 | `ui/setup/HermesImportActivity.kt` | URL 参数容忍被再编码一次（`hu=https%3A%2F%2F…`）；解析失败时显示收到的链接（key/token 掩码） |
-| `bridge/MobileBridgeService.kt`, `SettingsActivity.kt` | 设置页按 Save 时若桥在运行则用新配置重启（`bindMode`/`port` 只在 server `start()` 时读取） |
+| `bridge/MobileBridgeService.kt`, `ui/settings/SettingsSaveSupport.kt`（新增） | 设置页按 Save 时若桥在运行则用新配置重启（`bindMode`/`port` 只在 server `start()` 时读取）。**收尾逻辑统一到 `SettingsSaveSupport`**，见第 8 节"两个宿主" |
 | `app/build.gradle.kts`, `SettingsActivity.kt` | build 标记：设置页底部显示 `<git 短哈希>.<构建时间>`，用于区分同一 tag 下的不同编译产物 |
 | `integrations/agentvoice-pair/*` | 桌面端助手（PowerShell + bash，含 README 与安装器） |
 | `app/src/test/.../PairingUriParseTest.kt`（新增） | 深链解析的 Robolectric 单测（query 形式、再编码容忍、非法输入拒绝） |
+| `ui/LocaleAwareActivity.kt`（新增）+ 13 个 Activity | 界面语言统一处理：所有 Activity 都继承它，在 `attachBaseContext` 应用「设置 → 显示语言」（空 = 跟随系统）。此前只有 MainActivity / SettingsActivity 手写了这段，其余 11 个界面恒定跟系统语言 |
+| `SettingsActivity.kt`（保存流程） | 语言改变时不再静默重启，改为弹确认框，点「立即重启」才清栈重启到主界面；点「稍后」下次新建界面时生效 |
+| `SettingsActivity.kt`（语言列表） | 语言条目只用各语言自己的写法（简体中文 / 繁體中文 / English…），不写国家名；去掉与 `de-DE` 重复的 `de-AT`；只保留翻译完整的语言（见第 6 节） |
+| `res/values-zh-rCN`, `res/values-zh-rTW` | 补齐 122 条缺失文案（含配对卡片、扫码提示、Mobile Bridge 页、Terminal 字段、Rig Qwen TTS），现 946/946 全覆盖 |
+| `res/values/strings.xml`, `res/values-ja` | 默认（英文）文件里残留的 62 条日文改成英文（上游把英文文件当日文草稿写）；原本那条日文补进 `values-ja` |
+| `app/src/test/.../LocaleAwareActivityTest.kt`（新增） | 语言映射单测：空 = 跟随系统、指定语言真的换翻译、无翻译回落英文；以及「立即重启」发出的 Intent 目标与 flag |
+| `MainActivity.kt`（设置标签页 `MainNavHost`） | 补上语言弹窗与桥重启：底部导航的「设置」是另一个宿主，此前这些逻辑只写在 `SettingsActivity` 里，从底部导航进去根本不执行（详见第 8 节） |
+| `SettingsActivity.kt`（保存流程） | 保存后询问「是否立即重启」；**删除**保存流程里的 `AppCompatDelegate.setApplicationLocales()` 调用——它在 API 33+ 会写系统 per-app locale 并立刻触发配置变更、重建当前界面，导致弹窗状态落在已销毁的 composition 上 |
+| `LocaleAwareActivity.kt` | 新增 `langDiag()`：语言/保存流程诊断同时写 logcat 与 `files/langdiag.log`（本机 ROM 的 logcat 缓冲区是空的，只能靠文件） |
 | `gradle/wrapper/gradle-wrapper.properties` | 指向腾讯云镜像（中国大陆构建速度考虑）；改回官方源只需还原 `distributionUrl` |
 
 ### 3. Mobile Bridge 能力实测表
@@ -459,7 +468,80 @@ App 侧另有一条不依赖相机的路：首启向导 "One QR sets up WakeHerm
   （CameraX 拍照回传，或把无障碍截图的 bitmap 回传）。
 - 自编译包（不同包名）拿不到 Google Play 的 ML Kit 扫码模块，内置扫码可能不可用 —— 用深链二维码 + 系统相机即可绕过。
 
-### 6. 许可与出处
+### 6. 界面语言（已实现 / 待补齐）
+
+判定标准：**翻译完整（946/946 条）才算"已实现"**，才会出现在「设置 → 显示语言」列表里；
+不完整的语言即使资源目录存在也先不进列表，避免界面里混着英文。
+
+已实现（语言列表里可选）：
+
+| 语言条目 | 资源目录 | 覆盖 |
+| --- | --- | --- |
+| 跟随系统（默认值，不写死语言） | — | 用系统语言；缺翻译时回落英文 |
+| 简体中文 | `res/values-zh-rCN` | 946/946（100%） |
+| 繁體中文 | `res/values-zh-rTW` | 946/946（100%） |
+| English | `res/values`（默认） | 946/946（100%） |
+
+待补齐（资源已在包内，但翻译不完整，故未列入语言列表）：
+
+| 语言 | 资源目录 | 覆盖 | 缺 | 说明 |
+| --- | --- | --- | --- | --- |
+| 日本語 | `res/values-ja` | 908/946（96%） | 38 | 补齐后即可加回列表 |
+| 한국어 | `res/values-ko` | 908/946（96%） | 38 | 补齐后即可加回列表 |
+| Deutsch | `res/values-de` | 820/946（87%） | 126 | 上游只译到 87% |
+| Español | `res/values-es` | 820/946（87%） | 126 | 同上 |
+| Français | `res/values-fr` | 820/946（87%） | 126 | 同上 |
+| हिन्दी | `res/values-hi` | 820/946（87%） | 126 | 同上 |
+| Русский | `res/values-ru` | 820/946（87%） | 126 | 同上 |
+
+统计口径：`values/strings.xml` 的 `<string>` 条目数（946）。缺的条目在运行时自动回落英文，不会崩。
+
+生效流程：语言只在界面重新创建时读取「显示语言」，所以保存时若语言有变化会弹「重启以应用新语言？」，
+点「立即重启」清任务栈回主界面后整体生效；点「稍后」则下次新建界面时生效。
+
+### 7. 待实现 / 待测试
+
+| 项目 | 现状 | 待做 / 待验 | 依赖 |
+| --- | --- | --- | --- |
+| ja / ko 文案 | 各缺 38 条 | 补齐后可加回语言列表 | 翻译 |
+| de / es / fr / hi / ru 文案 | 各缺 126 条 | 补齐后可加回语言列表 | 翻译（工作量大，或改上游） |
+| 语言切换的即时刷新 | 已实现「保存 → 询问 → 立即重启」；**真机已验证**（nubia NX779J / Android 16，2026-10-15）：弹窗出现、点「立即重启」后整体换语言 | 无 | — |
+| 保存后副作用（语言弹窗 / 桥重启） | 已统一到 `ui/settings/SettingsSaveSupport`（两个宿主共用） | 语言弹窗已真机确认；**桥的"保存时重启"待真机确认** | 手机 |
+| `camera.capture_photo` | 占位（`isAvailable=false`，不在 /manifest） | 选定方案：CameraX 拍照并回传（或直接删掉该能力） | 需要设计决策 |
+| `screen.screenshot` | 占位：bitmap 被丢弃，取不回图像 | 无障碍截图 bitmap 回传 | 需评估风险等级 |
+| `apps.launch` | 回 `launched:true` 但被 Android 10+ 后台启动限制静默拦截 | 改用前台服务/`PendingIntent` 或明确报错 | 需要设计决策 |
+| `brightness.set` | 运行时不可见（`isAvailable=false`） | 引导授予 `WRITE_SETTINGS` 后再暴露 | 权限 |
+| 内置二维码扫描 | 自编译包拿不到 Google Play 的 ML Kit 模块 | 捆绑 zxing + CameraX，或维持「系统相机扫深链」 | 改动较大 |
+| 有副作用的 12 项能力 | `screen.tap/swipe/long_press/drag/back`、`media.*`、`notification.dismiss`、`sms.send`、`contacts.*`、`calendar.*` 只做了代码审查 | 需在受控场景逐项实测 | 会真的改手机状态 |
+| cron 修复 | 已在本 fork 分支 | 建议单独提 PR 回上游（`HermesCronSchedule.expr` 必填会让整个 cron 列表反序列化失败） | 上游评审 |
+
+### 8. 排查笔记：两个宿主与"改了没反应"
+
+设置界面（`SettingsScreen`）有**两个宿主**，这是本次踩坑最多的地方：
+
+| 宿主 | 位置 | 说明 |
+| --- | --- | --- |
+| `MainActivity` 的「设置」标签页 | `MainActivity.kt` 里的顶层 composable `MainNavHost()`（不是 Activity 成员） | 底部导航进入的就是这一个，用户实际走的路径 |
+| 独立的 `SettingsActivity` | `SettingsActivity.kt:231` | 同一个 `SettingsScreen`，另一份 `onSave` |
+
+把保存后的副作用（语言改动弹窗、移动桥接按新配置重启）只写在其中一个宿主的 `onSave` 里，另一个入口按保存
+就"什么都没发生"——本次的"语言弹窗不出现""桥要手动重启才生效"都是这个原因。现在统一到
+`ui/settings/SettingsSaveSupport.afterSave()` 与 `LanguageRestartDialog()`，两个宿主只调这两处
+（`grep restartIfRunning` 全仓只剩一处调用点）。注意 `MainNavHost` 是顶层 composable，
+`appliedLanguageTag` 这类 Activity 成员在里面不可见，要用 `LocalContext.current as? LocaleAwareActivity`。
+
+另外两条经验：
+
+- **别用 `AppCompatDelegate.setApplicationLocales()` 实现"跟随系统 / 指定语言"**：在 API 33+ 它会写系统级
+  per-app locale 并立刻触发配置变更、重建当前界面，保存流程里刚设上的弹窗状态会落在已销毁的 composition 上
+  （弹窗永不出现）。本 fork 改为在 `LocaleAwareActivity.attachBaseContext` 里按设置应用一次（空值 = 跟随系统），
+  启动时由 `OpenClawApplication` 把系统 per-app locale 同步一次。
+- **诊断写文件，别指望 logcat**：本机（nubia NX779J / Android 16）的 logcat 主缓冲区读出来是空的
+  （`adb logcat -g` 显示 `0 B readable`，`logcat -d` 无输出），`Log.i` 什么都留不下。
+  `LocaleAwareActivity.langDiag()` 同时写 logcat 与应用私有目录 `files/langdiag.log`，用
+  `adb shell run-as com.openclaw.assistant.debug cat files/langdiag.log` 读，能直接看出"走了哪条路径 / 是否抛异常"。
+
+### 9. 许可与出处
 
 上游为 **MIT**（[`LICENSE`](LICENSE)，Copyright (c) 2026 yuga-hashimoto）；本 fork 保留原许可与版权声明，
 新增改动同样以 MIT 发布。第三方组件与随包资源见 [`THIRD_PARTY_LICENSES.md`](THIRD_PARTY_LICENSES.md)。
@@ -552,6 +634,7 @@ App 侧另有一条不依赖相机的路：首启向导 "One QR sets up WakeHerm
 - 🩺 **音声診断** - STT/TTSエンジンのヘルスチェックと修正提案
 - ❓ **トラブルシューティングガイド** - よくある問題のアプリ内ヘルプ（Circle to Search、ジェスチャーナビゲーションなど）
 - 🌍 **9言語対応UI** - 英語・日本語・スペイン語・フランス語・ドイツ語・ヒンディー語・ロシア語・中国語（簡体・繁体）
+  - 本 fork の設定に出るのは**翻訳が完了している言語だけ**：簡体中文・繁體中文・English（＋「システムに従う」）。他言語のリソースは同梱済みですが翻訳が未完了のため一覧から外しています（詳細は Fork notes 第6節）
 
 ### 📱 使い方
 

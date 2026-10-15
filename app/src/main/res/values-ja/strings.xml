@@ -945,4 +945,5 @@
     <string name="av_home_disconnected">未接続</string>
     <string name="av_home_test_ok_short">成功</string>
     <string name="av_home_test_failed_short">失敗</string>
+    <string name="tts_error_rig_qwen_no_url">Rig Qwen TTS のサーバーURLが設定されていません</string>
 </resources>

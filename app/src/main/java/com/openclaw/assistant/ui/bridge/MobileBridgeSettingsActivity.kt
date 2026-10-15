@@ -1,7 +1,7 @@
 package com.openclaw.assistant.ui.bridge
 
+import com.openclaw.assistant.ui.LocaleAwareActivity
 import android.os.Bundle
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -69,7 +69,7 @@ import com.openclaw.assistant.bridge.BridgeBindMode
 import com.openclaw.assistant.bridge.MobileBridgeConfig
 import com.openclaw.assistant.bridge.MobileBridgeService
 
-class MobileBridgeSettingsActivity : ComponentActivity() {
+class MobileBridgeSettingsActivity : LocaleAwareActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent { MaterialTheme { MobileBridgeSettingsScreen() } }

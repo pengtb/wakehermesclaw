@@ -1,5 +1,6 @@
 package com.openclaw.assistant
 
+import com.openclaw.assistant.ui.LocaleAwareActivity
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -13,7 +14,6 @@ import android.provider.Settings
 import android.util.Log
 import android.widget.Toast
 import android.content.Context
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.activity.result.contract.ActivityResultContracts
@@ -97,7 +97,7 @@ import com.openclaw.assistant.ui.backend.ChatBackendTarget
 
 private const val TAG = "ChatActivity"
 
-class ChatActivity : ComponentActivity() {
+class ChatActivity : LocaleAwareActivity() {
 
     companion object {
         const val EXTRA_SESSION_ID = "EXTRA_SESSION_ID"
@@ -308,7 +308,6 @@ private fun getFileName(context: Context, uri: Uri): String? {
         if (cut != -1) path.substring(cut + 1) else path
     }
 }
-
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -830,7 +829,6 @@ fun PreparingSpeechIndicator() {
         }
     }
 }
-
 
 @Composable
 fun PendingToolsIndicator(toolCalls: List<String>) {

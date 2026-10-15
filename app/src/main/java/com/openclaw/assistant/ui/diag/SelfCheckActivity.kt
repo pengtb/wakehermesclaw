@@ -1,7 +1,7 @@
 package com.openclaw.assistant.ui.diag
 
+import com.openclaw.assistant.ui.LocaleAwareActivity
 import android.os.Bundle
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -51,7 +51,7 @@ import kotlinx.coroutines.withContext
  * Each check is a pure status read except for backend probes, which spawn
  * actual `testConnection()` calls and surface latency + winning endpoint.
  */
-class SelfCheckActivity : ComponentActivity() {
+class SelfCheckActivity : LocaleAwareActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent { MaterialTheme { SelfCheckScreen() } }

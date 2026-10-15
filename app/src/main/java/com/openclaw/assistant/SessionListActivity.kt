@@ -1,9 +1,9 @@
 package com.openclaw.assistant
 
+import com.openclaw.assistant.ui.LocaleAwareActivity
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
-import androidx.activity.ComponentActivity
 import com.openclaw.assistant.data.SettingsRepository
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
@@ -67,7 +67,7 @@ import com.openclaw.assistant.gateway.AgentInfo
 import com.openclaw.assistant.ui.backend.ChatBackendTarget
 import com.openclaw.assistant.ui.theme.OpenClawAssistantTheme
 
-class SessionListActivity : ComponentActivity() {
+class SessionListActivity : LocaleAwareActivity() {
 
     private val viewModel: SessionListViewModel by viewModels()
 
@@ -422,8 +422,6 @@ fun SessionListScreen(
             }
         )
     }
-
-
 
     // Long-press action menu: Rename / Delete
     sessionActionTarget?.let { session ->
