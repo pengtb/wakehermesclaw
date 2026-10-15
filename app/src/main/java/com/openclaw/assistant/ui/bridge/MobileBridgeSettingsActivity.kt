@@ -107,6 +107,7 @@ private fun MobileBridgeSettingsContent(
     val port by cfg.port.collectAsState()
     val bindMode by cfg.bindMode.collectAsState()
     val approvalMode by cfg.approvalMode.collectAsState()
+    val serverRunning by cfg.serverRunning.collectAsState()
     val allowedGroups by cfg.allowedCapabilityGroups.collectAsState()
     LaunchedEffect(Unit) { BridgeActivityLog.initialize(context) }
     val activityEntries by BridgeActivityLog.entries.collectAsState()
@@ -127,6 +128,7 @@ private fun MobileBridgeSettingsContent(
                 enabled = enabled,
                 port = port,
                 bindMode = bindMode,
+                running = serverRunning,
                 tokenPresent = token.isNotBlank(),
                 onEnabledChange = {
                     cfg.setEnabled(it)
@@ -336,6 +338,7 @@ private fun BridgeStatusCard(
     enabled: Boolean,
     port: Int,
     bindMode: BridgeBindMode,
+    running: MobileBridgeConfig.Running?,
     tokenPresent: Boolean,
     onEnabledChange: (Boolean) -> Unit,
 ) {
@@ -350,8 +353,15 @@ private fun BridgeStatusCard(
                 Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f)) {
                     Text(stringResource(R.string.mobile_bridge_title), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    // 两行分开写：目前在 = server 实际绑定的（改配置并重启前不变）；拟在 = 当前设置里保存的值，重启后生效
                     Text(
-                        if (enabled) stringResource(R.string.av_bridge_running_on_port, port, modeLabel(bindMode)) else stringResource(R.string.av_bridge_off_desc),
+                        running?.let { stringResource(R.string.av_bridge_now_running, it.port, modeLabel(it.bindMode)) }
+                            ?: stringResource(R.string.av_bridge_now_stopped),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        stringResource(R.string.av_bridge_pending, port, modeLabel(bindMode)),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

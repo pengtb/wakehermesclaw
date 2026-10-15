@@ -54,7 +54,8 @@ open class MobileBridgeServer(
 
     fun start() {
         if (serverSocket != null) return
-        val bindAddress = when (config.bindMode.value) {
+        val bindMode = config.bindMode.value
+        val bindAddress = when (bindMode) {
             BridgeBindMode.LOCAL_ONLY -> InetAddress.getByName("127.0.0.1")
             BridgeBindMode.LAN -> InetAddress.getByName("0.0.0.0")
         }
@@ -62,6 +63,8 @@ open class MobileBridgeServer(
         socket.reuseAddress = true
         socket.bind(InetSocketAddress(bindAddress, config.port.value))
         serverSocket = socket
+        // 记下"实际绑定"的端口与模式，供界面区分「目前在」和「拟在」
+        config.setServerRunning(socket.localPort, bindMode)
         val s = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         scope = s
         s.launch { acceptLoop(socket) }
@@ -72,6 +75,7 @@ open class MobileBridgeServer(
         serverSocket = null
         scope?.cancel()
         scope = null
+        config.setServerRunning(null, null)
     }
 
     private suspend fun acceptLoop(socket: ServerSocket) {

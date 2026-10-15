@@ -979,4 +979,7 @@
     <string name="language_restart_message">顯示語言已儲存。現在重新啟動以生效嗎？其他設定無論怎麼選都已儲存。</string>
     <string name="language_restart_now">立即重新啟動</string>
     <string name="language_restart_later">稍後</string>
+    <string name="av_bridge_now_running">目前在：連接埠 %1$d（%2$s）</string>
+    <string name="av_bridge_now_stopped">目前在：未執行</string>
+    <string name="av_bridge_pending">擬在：連接埠 %1$d（%2$s）</string>
 </resources>

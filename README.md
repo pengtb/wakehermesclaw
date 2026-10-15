@@ -366,6 +366,8 @@ Bundled third-party binaries and assets are documented in [THIRD_PARTY_LICENSES.
 本 fork 基于上游 `main`（提交 `8562cea`，`v2.4.9.1+58`），改动集中在 **Hermes 后端的配对流程**、**Mobile Bridge 运维体验**
 和几个确定性 bug。仓库名保持 `openclaw-assistant` 以保留 fork 关系，App 名称仍是 WakeHermesClaw，`applicationId` 未改。
 
+面向开发者的说明（架构约定、构建与测试、易犯的错误）见 [AGENT.md](AGENT.md)。
+
 ### 1. 配对流程（Hermes 后端）
 
 桌面端助手在 [`integrations/agentvoice-pair/`](integrations/agentvoice-pair/)：
@@ -405,6 +407,7 @@ App 侧另有一条不依赖相机的路：首启向导 "One QR sets up WakeHerm
 | `ui/setup/ScanHelp.kt`（新增） | 扫码不可用/取消/权限/内容不符分别给可操作弹窗，替代原来一句 "Please update Google Play Services" |
 | `ui/setup/HermesImportActivity.kt` | URL 参数容忍被再编码一次（`hu=https%3A%2F%2F…`）；解析失败时显示收到的链接（key/token 掩码） |
 | `ui/settings/SettingsSaveSupport.kt`（新增） | 设置页保存后的统一收尾：语言改动提示 + 移动桥接按新配置重启，供两个入口共用 |
+| `bridge/MobileBridgeServer.kt`, `bridge/MobileBridgeConfig.kt`, `ui/bridge/MobileBridgeSettingsActivity.kt` | 桥接状态卡分两行显示「目前在」（server 实际绑定的端口与绑定模式，取自 `ServerSocket.localPort`）与「拟在」（设置里已保存、重启后生效的值），改完配置保存后可直接对照 |
 | `app/build.gradle.kts`, `SettingsActivity.kt` | build 标记：设置页底部显示 `<git 短哈希>.<构建时间>`，用于区分同一 tag 下的不同编译产物 |
 | `integrations/agentvoice-pair/*` | 桌面端助手（PowerShell + bash，含 README 与安装器） |
 | `app/src/test/.../PairingUriParseTest.kt`（新增） | 深链解析的 Robolectric 单测（query 形式、再编码容忍、非法输入拒绝） |
@@ -505,7 +508,7 @@ App 侧另有一条不依赖相机的路：首启向导 "One QR sets up WakeHerm
 | ja / ko 文案 | 各缺 38 条 | 补齐后可加回语言列表 | 翻译 |
 | de / es / fr / hi / ru 文案 | 各缺 126 条 | 补齐后可加回语言列表 | 翻译（工作量大，或改上游） |
 | 语言切换的即时刷新 | 已实现「保存 → 询问 → 立即重启」；**真机已验证**（Android 16，2026-10-15）：弹窗出现、点「立即重启」后整体换语言 | 无 | — |
-| 设置页保存后的收尾 | 统一到 `ui/settings/SettingsSaveSupport`（语言改动提示 + 桥接按新配置重启） | 桥接重启本身的生效（提示语「已保存。移动桥接已按新配置重启。」/ 新端口在监听）待确认 | 手机 |
+| 设置页保存后的收尾 | 统一到 `ui/settings/SettingsSaveSupport`；桥接状态卡分「目前在 / 拟在」两行，可直接对照设置值与运行值 | 待确认：改端口后保存，「目前在」是否更新为新端口 | 手机 |
 | `camera.capture_photo` | 占位（`isAvailable=false`，不在 /manifest） | 选定方案：CameraX 拍照并回传（或直接删掉该能力） | 需要设计决策 |
 | `screen.screenshot` | 占位：bitmap 被丢弃，取不回图像 | 无障碍截图 bitmap 回传 | 需评估风险等级 |
 | `apps.launch` | 回 `launched:true` 但被 Android 10+ 后台启动限制静默拦截 | 改用前台服务/`PendingIntent` 或明确报错 | 需要设计决策 |

@@ -52,6 +52,17 @@ class MobileBridgeConfig internal constructor(private val prefs: SharedPreferenc
     private val _autoDisableIdleMs = MutableStateFlow(prefs.getLong(KEY_AUTO_DISABLE_IDLE_MS, 0L))
     val autoDisableIdleMs: StateFlow<Long> = _autoDisableIdleMs.asStateFlow()
 
+    /** server 实际绑定的状态（端口 + 绑定模式）；未运行时为 null。界面用它区分「目前在」和「拟在」。 */
+    private val _serverRunning = MutableStateFlow<Running?>(null)
+    val serverRunning: StateFlow<Running?> = _serverRunning.asStateFlow()
+
+    data class Running(val port: Int, val bindMode: BridgeBindMode)
+
+    /** 由 MobileBridgeServer 在 bind 成功 / stop 时调用。 */
+    fun setServerRunning(port: Int?, bindMode: BridgeBindMode?) {
+        _serverRunning.value = if (port == null || bindMode == null) null else Running(port, bindMode)
+    }
+
     fun setEnabled(value: Boolean) { prefs.edit { putBoolean(KEY_ENABLED, value) }; _enabled.value = value }
     fun setPort(value: Int) { prefs.edit { putInt(KEY_PORT, value) }; _port.value = value }
     fun setBindMode(mode: BridgeBindMode) { prefs.edit { putString(KEY_BIND_MODE, mode.name) }; _bindMode.value = mode }

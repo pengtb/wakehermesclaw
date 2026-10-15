@@ -980,4 +980,7 @@
     <string name="language_restart_message">显示语言已保存。现在重启以生效吗？其它设置无论怎么选都已保存。</string>
     <string name="language_restart_now">立即重启</string>
     <string name="language_restart_later">稍后</string>
+    <string name="av_bridge_now_running">目前在：端口 %1$d（%2$s）</string>
+    <string name="av_bridge_now_stopped">目前在：未运行</string>
+    <string name="av_bridge_pending">拟在：端口 %1$d（%2$s）</string>
 </resources>

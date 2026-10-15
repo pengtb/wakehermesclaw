@@ -1072,4 +1072,7 @@
     <string name="language_restart_message">The display language is saved. Restart now to apply it? Your other settings are already saved either way.</string>
     <string name="language_restart_now">Restart now</string>
     <string name="language_restart_later">Later</string>
+    <string name="av_bridge_now_running">Now: port %1$d (%2$s)</string>
+    <string name="av_bridge_now_stopped">Now: not running</string>
+    <string name="av_bridge_pending">After restart: port %1$d (%2$s)</string>
 </resources>
