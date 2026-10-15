@@ -508,7 +508,7 @@ App 侧另有一条不依赖相机的路：首启向导 "One QR sets up WakeHerm
 | ja / ko 文案 | 各缺 38 条 | 补齐后可加回语言列表 | 翻译 |
 | de / es / fr / hi / ru 文案 | 各缺 126 条 | 补齐后可加回语言列表 | 翻译（工作量大，或改上游） |
 | 语言切换的即时刷新 | 已实现「保存 → 询问 → 立即重启」；**真机已验证**（Android 16，2026-10-15）：弹窗出现、点「立即重启」后整体换语言 | 无 | — |
-| 设置页保存后的收尾 | 统一到 `ui/settings/SettingsSaveSupport`；桥接状态卡分「目前在 / 拟在」两行，可直接对照设置值与运行值 | 待确认：改端口后保存，「目前在」是否更新为新端口 | 手机 |
+| 设置页保存后的收尾 | 统一到 `ui/settings/SettingsSaveSupport`；**真机已验证**（Android 16，2026-10-15）：改端口后保存，状态卡「目前在」更新为新端口，即"保存时按新配置重启桥接"生效 | 无 | — |
 | `camera.capture_photo` | 占位（`isAvailable=false`，不在 /manifest） | 选定方案：CameraX 拍照并回传（或直接删掉该能力） | 需要设计决策 |
 | `screen.screenshot` | 占位：bitmap 被丢弃，取不回图像 | 无障碍截图 bitmap 回传 | 需评估风险等级 |
 | `apps.launch` | 回 `launched:true` 但被 Android 10+ 后台启动限制静默拦截 | 改用前台服务/`PendingIntent` 或明确报错 | 需要设计决策 |
