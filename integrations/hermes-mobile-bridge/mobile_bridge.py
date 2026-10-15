@@ -29,7 +29,7 @@ class MobileBridgeError(RuntimeError):
 class MobileBridgeConfig:
     base_url: str
     token: str
-    timeout: float = 15.0
+    timeout: float = 45.0
 
     @classmethod
     def from_env(cls) -> "MobileBridgeConfig":

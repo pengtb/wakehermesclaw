@@ -42,8 +42,15 @@
   设置页状态卡用它显示「目前在 / 拟在」两行。改了配置但没重启时两行会不一致——这是判断"保存时重启是否生效"的依据。
 - `approvalMode` / `allowedCapabilityGroups` / token 是每请求读取，改完即时生效。
 - 能力组改了"看起来没生效"，通常是 Hermes 侧缓存的 `/manifest` 过期，重读 manifest 即可，不要重启桥。
-- 高风险能力（相机、屏幕截图）在上游是占位实现，`/manifest` 里不列；`apps.launch` 会被 Android 10+
-  的后台启动限制静默拦截。
+- 高风险能力里，**相机仍是上游占位实现**（`camera.capture_photo` 的 `isAvailable=false`，`/manifest` 里不列）；
+  `apps.launch` 会被 Android 10+ 的后台启动限制静默拦截。
+- 截图已实现，**两段式，不要退回成一段**：`screen.screenshot`（HIGH）只做抓屏 + 缩放 + JPEG，把字节塞进
+  `ScreenCaptureStore`（内存、TTL 5 分钟、最多 4 张、≤48MB、不落盘），返回元数据 + `id`；
+  `screen.screenshot.fetch {id}`（MEDIUM）才回 base64。把像素内联进第一段会让每个只想判断"画面变没变"的
+  调用方都拖一份 base64 过 JSON 桥。抓屏走 `AccessibilityService.takeScreenshot()`（API 30+，
+  服务配置必须保留 `android:canTakeScreenshot="true"`），失败时回平台 `errorCode`
+  （`3` = 调用太快，平台有频率限制；`6` = 目标页面 `FLAG_SECURE`）—— 别把它吞成通用失败。
+  Hermes 侧封装在 `integrations/hermes-mobile-bridge/capture_screen.py`。
 
 ## 4. 构建 / 测试 / 装包
 

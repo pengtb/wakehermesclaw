@@ -441,7 +441,7 @@ App 侧另有一条不依赖相机的路：首启向导 "One QR sets up WakeHerm
 | screen.hash / diff | accessibility/LOW | completed：返回 hash，可与上次比较 | 正常（链式） |
 | screen.find_nodes / describe_node | accessibility/LOW | completed：按 text/class/clickable 查找并读节点 | 正常（链式） |
 | screen.home | accessibility/LOW | completed：回到桌面 | 正常 |
-| screen.screenshot | accessibility/HIGH | 只回 `{"ok":true,"hint":"…takeScreenshot()"}` | **占位**：bitmap 被丢弃，取不回图像 |
+| screen.screenshot / .fetch | accessibility/HIGH / MEDIUM | 本次仅构建，**尚未真机实测** | **已实现**：两段式（第一段回元数据 + 短时 id，第二段回 base64） |
 | apps.launch | apps/MEDIUM | 回 `{"launched":true}`，但 1/3/6 秒后前台仍是桌面（两个 App 均如此） | **有 bug**：后台 `startActivity` 被 Android 10+ 静默拦截 |
 | camera.capture_photo | camera/HIGH | `{"status":"failed","error":"unsupported_capability"}` | **占位**：`isAvailable=false`，不在 /manifest |
 
@@ -451,8 +451,37 @@ App 侧另有一条不依赖相机的路：首启向导 "One QR sets up WakeHerm
 运行时不可见（`isAvailable=false`，需 `WRITE_SETTINGS`）。
 
 结论：设备/系统读取、剪贴板读写、通知读取、无障碍读屏与 Home/Back 这类全局动作都稳定可用；
-图像相关的两条路（相机、截图）在上游都是占位；`apps.launch` 静默失败。
+图像里相机那条在上游仍是占位（`camera.capture_photo`），截图已按下面这一节的做法补上；`apps.launch` 静默失败。
 验证能力是否真生效**必须**用 `screen.window.describe` 看前台包名，不能只看返回值。
+
+#### 3.1 截图：两段式（本次实现）
+
+上游的 `screen.screenshot` 是占位实现（bitmap 被丢弃）。这里把它做成两段式，理由是桥的传输是 JSON ——
+把整张图的 base64 塞进一个 /execute 响应，会让每个调用方都为像素买单，即使它只想问"画面变了吗"。
+
+1. `screen.screenshot {long_edge?:1568, quality?:80}`（风险 HIGH）—— 走
+   `AccessibilityService.takeScreenshot(displayId, executor, callback)`（API 30+，服务配置里必须有
+   `android:canTakeScreenshot="true"`）拿到 `HardwareBuffer` → `Bitmap.wrapHardwareBuffer` → 复制成
+   ARGB_8888 → 按长边缩放 → JPEG → 存进**内存**缓冲，只返回元数据：
+
+       {"ok":true,"id":"sc-<ts>-<n>","mime":"image/jpeg","width":706,"height":1568,
+        "sourceWidth":1116,"sourceHeight":2480,"bytes":93000,"longEdge":1568,"quality":80,
+        "ttlMs":300000,"expiresAt":…,"fetchWith":"screen.screenshot.fetch"}
+
+2. `screen.screenshot.fetch {id}`（风险 MEDIUM）—— 返回 `{base64, mime, width, height, bytes}`；
+   id 过期或未知时返回 `{ok:false, reason:"unknown or expired id"}`（不伪造空图）。
+
+缓冲由 `ScreenCaptureStore` 管理：**只存内存、不落盘**，TTL 5 分钟、最多 4 张、总量 ≤ 48MB，
+超出按最旧淘汰；进程重启即清空。默认长边 1568 / JPEG 80 是实测的口径（原生 1116×2480 缩到
+706×1568 约 93KB，读屏上的小字够用）。
+
+Hermes 侧封装：`integrations/hermes-mobile-bridge/capture_screen.py`（两段一次做完、解码写文件、
+打印含 path/尺寸/耗时的 JSON），装包后可这样验证：
+
+    python capture_screen.py --out D:\tmp\shot.jpg
+
+失败时 `screen.screenshot` 会带上平台的 `errorCode`：`2`=没有无障碍权限、`3`=调用太快（平台有频率限制）、
+`4`=display 无效、`5`=窗口无效、`6`=目标页面设置了 `FLAG_SECURE`。
 
 ### 4. 构建
 
@@ -466,8 +495,8 @@ App 侧另有一条不依赖相机的路：首启向导 "One QR sets up WakeHerm
 ### 5. 已知问题（上游同样存在）
 
 - `apps.launch` 后台启动 Activity 被系统拦截，返回值仍是 `launched: true`。
-- `camera.capture_photo` 与 `screen.screenshot` 都是占位实现，经桥拿不到任何图像；要真图片需自行实现
-  （CameraX 拍照回传，或把无障碍截图的 bitmap 回传）。
+- `camera.capture_photo` 仍是占位实现（`isAvailable=false`），经桥拿不到相机图；截图的占位已被上面的两段式取代
+  （`screen.screenshot` + `screen.screenshot.fetch`）。
 - 自编译包（不同包名）拿不到 Google Play 的 ML Kit 扫码模块，内置扫码可能不可用 —— 用深链二维码 + 系统相机即可绕过。
 
 ### 6. 界面语言（已实现 / 待补齐）

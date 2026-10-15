@@ -1,13 +1,22 @@
 package com.openclaw.assistant.bridge.accessibility
 
 import android.accessibilityservice.AccessibilityService
+import android.accessibilityservice.AccessibilityService.ScreenshotResult
+import android.accessibilityservice.AccessibilityService.TakeScreenshotCallback
 import android.accessibilityservice.GestureDescription
+import android.graphics.Bitmap
 import android.graphics.Rect
 import android.graphics.Path
+import android.os.Build
+import android.view.Display
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
+import androidx.annotation.RequiresApi
+import androidx.core.content.ContextCompat
 import com.openclaw.assistant.bridge.WakeLockManager
 import java.security.MessageDigest
+import kotlin.coroutines.resume
+import kotlinx.coroutines.suspendCancellableCoroutine
 
 /**
  * Accessibility Bridge — the agent reads the visible screen and acts on it:
@@ -66,6 +75,43 @@ class AgentVoiceAccessibilityService : AccessibilityService() {
             val path = Path().apply { moveTo(x, y); lineTo(x + 1f, y + 1f) }
             val stroke = GestureDescription.StrokeDescription(path, 0L, durationMs.coerceAtLeast(350L))
             dispatchGesture(GestureDescription.Builder().addStroke(stroke).build(), null, null)
+        }
+    }
+
+    /** Outcome of a screen grab: a bitmap on success, else the platform error code (-1 = call threw). */
+    class ScreenGrab(val bitmap: Bitmap?, val errorCode: Int) {
+        val ok: Boolean get() = bitmap != null
+    }
+
+    /**
+     * Grab the current screen through `AccessibilityService.takeScreenshot()` (API 30+,
+     * requires `android:canTakeScreenshot="true"` in the service config).
+     *
+     * The platform is asynchronous and rate-limited: this suspends until the callback
+     * fires and hands back either a software bitmap (copied out of the HardwareBuffer,
+     * which is then closed) or the platform error code so the caller can report a
+     * truthful reason instead of a generic failure.
+     */
+    @RequiresApi(Build.VERSION_CODES.R)
+    suspend fun captureScreenBitmap(): ScreenGrab = suspendCancellableCoroutine { cont ->
+        val callback = object : TakeScreenshotCallback {
+            override fun onSuccess(screenshot: ScreenshotResult) {
+                val bitmap = runCatching {
+                    Bitmap.wrapHardwareBuffer(screenshot.hardwareBuffer, screenshot.colorSpace)
+                        ?.copy(Bitmap.Config.ARGB_8888, false)
+                }.getOrNull()
+                runCatching { screenshot.hardwareBuffer.close() }
+                if (cont.isActive) cont.resume(ScreenGrab(bitmap, 0))
+            }
+
+            override fun onFailure(errorCode: Int) {
+                if (cont.isActive) cont.resume(ScreenGrab(null, errorCode))
+            }
+        }
+        try {
+            takeScreenshot(Display.DEFAULT_DISPLAY, ContextCompat.getMainExecutor(this), callback)
+        } catch (_: Throwable) {
+            if (cont.isActive) cont.resume(ScreenGrab(null, -1))
         }
     }
 
