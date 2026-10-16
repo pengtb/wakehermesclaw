@@ -854,4 +854,18 @@ Pour plus de détails, consultez le site officiel de VOICEVOX.</string>
     <string name="settings_category_support_desc">Signalements, recherche de mises a jour, version, liens de support</string>
     <string name="settings_category_credits_desc">Licences, credits et soutien du projet</string>
     <string name="tab_nav_terminal">Terminal</string>
+    <string name="tts_provider_openai_compat">Compatible OpenAI</string>
+    <string name="tts_provider_openai_compat_description">Tout serveur parlant /v1/audio/speech d’OpenAI (Qwen3-TTS local, Kokoro…)</string>
+    <string name="tts_error_openai_compat_no_url">URL du serveur non définie</string>
+    <string name="tts_error_synthesis_failed">Échec de la synthèse vocale</string>
+    <string name="tts_error_save_failed">Échec de l’enregistrement audio</string>
+    <string name="tts_error_playback_failed">Échec de la lecture audio</string>
+    <string name="openai_compat_hint">Envoie à {serveur}/v1/audio/speech — pour un serveur TTS local ou auto-hébergé. Laissez la clé API vide si le serveur ne la vérifie pas.</string>
+    <string name="openai_compat_url_label">URL du serveur</string>
+    <string name="openai_compat_model_label">Modèle</string>
+    <string name="openai_compat_voice_label">Voix</string>
+    <string name="openai_compat_api_key_label">Clé API (facultatif)</string>
+    <string name="tts_engine_hint_title">Aucun moteur de synthèse vocale détecté</string>
+    <string name="tts_engine_hint_message">Le TTS local nécessite un moteur de synthèse vocale au niveau du système, et aucun n’est installé sur cet appareil. Installez le moteur hors ligne pour le français de sherpa-onnx : téléchargez le paquet arm64-v8a fra depuis le dossier tts-engine-new à l’adresse https://huggingface.co/csukuangfj2/sherpa-onnx-apk. Une fois installé, le moteur apparaîtra dans la liste « Moteur TTS » de cette page ; sélectionnez-le pour utiliser le TTS local.</string>
+    <string name="tts_engine_hint_ok">Compris</string>
 </resources>

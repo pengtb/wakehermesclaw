@@ -853,4 +853,18 @@ Weitere Informationen finden Sie auf der offiziellen Website von VOICEVOX.</stri
     <string name="settings_category_support_desc">Fehlerberichte, Update-Pruefung, Version, Support-Links</string>
     <string name="settings_category_credits_desc">Lizenzen, Danksagungen und Projektunterstuetzung</string>
     <string name="tab_nav_terminal">Terminal</string>
+    <string name="tts_provider_openai_compat">OpenAI-kompatibel</string>
+    <string name="tts_provider_openai_compat_description">Jeder Server, der OpenAI /v1/audio/speech spricht (lokales Qwen3-TTS, Kokoro …)</string>
+    <string name="tts_error_openai_compat_no_url">Server-URL nicht gesetzt</string>
+    <string name="tts_error_synthesis_failed">Sprachsynthese fehlgeschlagen</string>
+    <string name="tts_error_save_failed">Audio konnte nicht gespeichert werden</string>
+    <string name="tts_error_playback_failed">Audio konnte nicht abgespielt werden</string>
+    <string name="openai_compat_hint">Sendet an {Server}/v1/audio/speech — für lokale oder selbst gehostete TTS-Server. API-Schlüssel leer lassen, wenn der Server ihn nicht prüft.</string>
+    <string name="openai_compat_url_label">Server-URL</string>
+    <string name="openai_compat_model_label">Modell</string>
+    <string name="openai_compat_voice_label">Stimme</string>
+    <string name="openai_compat_api_key_label">API-Schlüssel (optional)</string>
+    <string name="tts_engine_hint_title">Keine Sprachausgabe-Engine gefunden</string>
+    <string name="tts_engine_hint_message">Lokales TTS benötigt eine systemweite Sprachausgabe-Engine; auf diesem Gerät ist derzeit keine installiert. Installieren Sie die Offline-Engine für Deutsch von sherpa-onnx: Laden Sie das arm64-v8a-deu-Paket aus dem Ordner tts-engine-new unter https://huggingface.co/csukuangfj2/sherpa-onnx-apk. Nach der Installation erscheint die Engine in der Liste „TTS-Engine“ auf dieser Seite; wählen Sie sie aus, um lokales TTS zu verwenden.</string>
+    <string name="tts_engine_hint_ok">Verstanden</string>
 </resources>

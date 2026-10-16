@@ -73,7 +73,7 @@
     <string name="av_bridge_token_not_generated">아직 생성되지 않음</string>
     <string name="av_bridge_rotate_token">토큰 교체</string>
     <string name="av_bridge_capabilities_section">기능</string>
-    <string name="av_bridge_capabilities_desc">이는 홈 화면 토글과 별개입니다. 선택한 그룹만 로컬 브리지 HTTP API를 통해 노출됩니다.</string>
+    <string name="av_bridge_capabilities_desc">선택한 그룹만 로컬 브리지 HTTP API를 통해 노출됩니다. 홈 화면의 카메라 / 위치 / SMS / 화면 스위치도 같은 그룹을 전환합니다.</string>
     <string name="av_bridge_service_enabled">서비스 활성화됨</string>
     <string name="av_bridge_enable_a11y_settings">Android 접근성 설정에서 활성화</string>
     <string name="av_bridge_pairing_checks">페어링 및 확인</string>
@@ -1034,4 +1034,18 @@
     <string name="av_home_disconnected">연결 끊김</string>
     <string name="av_home_test_ok_short">성공</string>
     <string name="av_home_test_failed_short">실패</string>
+    <string name="tts_provider_openai_compat">OpenAI 호환</string>
+    <string name="tts_provider_openai_compat_description">OpenAI /v1/audio/speech 규격을 지원하는 모든 서버(로컬 Qwen3-TTS, Kokoro 등)</string>
+    <string name="tts_error_openai_compat_no_url">서버 URL이 설정되지 않았습니다</string>
+    <string name="tts_error_synthesis_failed">음성 합성 실패</string>
+    <string name="tts_error_save_failed">오디오 저장 실패</string>
+    <string name="tts_error_playback_failed">오디오 재생 실패</string>
+    <string name="openai_compat_hint">{서버}/v1/audio/speech 로 POST합니다. 로컬 또는 자체 TTS 서버를 지정할 수 있으며, 서버가 키를 검사하지 않으면 API 키는 비워 두세요.</string>
+    <string name="openai_compat_url_label">서버 URL</string>
+    <string name="openai_compat_model_label">모델</string>
+    <string name="openai_compat_voice_label">음성</string>
+    <string name="openai_compat_api_key_label">API 키(선택)</string>
+    <string name="tts_engine_hint_title">음성 합성 엔진을 찾을 수 없습니다</string>
+    <string name="tts_engine_hint_message">로컬 TTS는 시스템 수준의 음성 합성 엔진을 사용하지만, 현재 이 기기에는 설치된 엔진이 없습니다. sherpa-onnx의 오프라인 한국어 엔진을 설치하세요: https://huggingface.co/csukuangfj2/sherpa-onnx-apk 의 tts-engine-new 폴더에서 arm64-v8a kor 패키지를 내려받습니다. 설치 후 이 페이지의 「TTS 엔진」 목록에 표시되며, 선택하면 로컬 TTS를 사용할 수 있습니다.</string>
+    <string name="tts_engine_hint_ok">확인</string>
 </resources>

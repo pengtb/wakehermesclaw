@@ -854,4 +854,18 @@
     <string name="settings_category_support_desc">Отчеты о проблемах, проверка обновлений, версия, ссылки поддержки</string>
     <string name="settings_category_credits_desc">Лицензии, благодарности и поддержка проекта</string>
     <string name="tab_nav_terminal">Терминал</string>
+    <string name="tts_provider_openai_compat">Совместимый с OpenAI</string>
+    <string name="tts_provider_openai_compat_description">Любой сервер с поддержкой /v1/audio/speech от OpenAI (локальный Qwen3-TTS, Kokoro …)</string>
+    <string name="tts_error_openai_compat_no_url">Адрес сервера не задан</string>
+    <string name="tts_error_synthesis_failed">Не удалось синтезировать речь</string>
+    <string name="tts_error_save_failed">Не удалось сохранить аудио</string>
+    <string name="tts_error_playback_failed">Не удалось воспроизвести аудио</string>
+    <string name="openai_compat_hint">Отправляет запрос на {сервер}/v1/audio/speech — для локального или собственного TTS-сервера. Оставьте API-ключ пустым, если сервер его не проверяет.</string>
+    <string name="openai_compat_url_label">Адрес сервера</string>
+    <string name="openai_compat_model_label">Модель</string>
+    <string name="openai_compat_voice_label">Голос</string>
+    <string name="openai_compat_api_key_label">API-ключ (необязательно)</string>
+    <string name="tts_engine_hint_title">Движок синтеза речи не обнаружен</string>
+    <string name="tts_engine_hint_message">Локальному TTS нужен системный движок синтеза речи, но на этом устройстве он не установлен. Установите офлайн-движок для русского языка от sherpa-onnx: скачайте пакет arm64-v8a rus из папки tts-engine-new по адресу https://huggingface.co/csukuangfj2/sherpa-onnx-apk. После установки движок появится в списке «Движок TTS» на этой странице; выберите его, чтобы использовать локальный TTS.</string>
+    <string name="tts_engine_hint_ok">Понятно</string>
 </resources>

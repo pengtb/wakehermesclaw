@@ -2,12 +2,22 @@ package com.openclaw.assistant.ui.settings
 
 import android.widget.Toast
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.remember
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.LinkAnnotation
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLinkStyles
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.withLink
 import com.openclaw.assistant.R
 import com.openclaw.assistant.bridge.MobileBridgeService
 import com.openclaw.assistant.ui.LocaleAwareActivity
@@ -52,6 +62,56 @@ private object SettingsRepositoryHolder {
     fun language(context: android.content.Context): String = runCatching {
         com.openclaw.assistant.data.SettingsRepository.getInstance(context).appLanguage.trim()
     }.getOrDefault("")
+}
+
+/**
+ * 「本地 TTS 但系统里没有 TTS 引擎」的提示弹窗。
+ *
+ * 触发点：设置页保存时，TTS 提供商选了「本地」、而系统里 `android.intent.action.TTS_SERVICE`
+ * 一个都没查到（`TTSEngineUtils.getAvailableEngines()` 为空）。只说明去哪装、装完回来自动可选，
+ * 不做安装跳转、也不记「不再提示」——装好引擎后这条自然不会再出现。
+ */
+@Composable
+fun TtsEngineHintDialog(visible: MutableState<Boolean>) {
+    if (!visible.value) return
+    val message = stringResource(R.string.tts_engine_hint_message)
+    val linkColor = MaterialTheme.colorScheme.primary
+    // 正文里的链接要能直接点：按 URL 正则标注成超链接（各语言文案里链接位置不同，不写死下标）
+    val body = remember(message, linkColor) { linkifyUrls(message, linkColor) }
+    AlertDialog(
+        onDismissRequest = { visible.value = false },
+        title = { Text(stringResource(R.string.tts_engine_hint_title)) },
+        text = { Text(body) },
+        confirmButton = {
+            TextButton(onClick = { visible.value = false }) {
+                Text(stringResource(R.string.tts_engine_hint_ok))
+            }
+        }
+    )
+}
+
+/** 匹配正文里的 http(s) 链接；排除中英文标点和括号，避免把句末标点吞进链接。 */
+private val URL_PATTERN = Regex("""https?://[^\s，。；、（）()「」"']+""")
+
+/** 把文本里的链接标成可点超链接（点击由系统按 ACTION_VIEW 打开）。 */
+private fun linkifyUrls(text: String, linkColor: Color): AnnotatedString = buildAnnotatedString {
+    var cursor = 0
+    URL_PATTERN.findAll(text).forEach { match ->
+        append(text.substring(cursor, match.range.first))
+        val url = match.value
+        withLink(
+            LinkAnnotation.Url(
+                url = url,
+                styles = TextLinkStyles(
+                    style = SpanStyle(color = linkColor, textDecoration = TextDecoration.Underline)
+                )
+            )
+        ) {
+            append(url)
+        }
+        cursor = match.range.last + 1
+    }
+    append(text.substring(cursor))
 }
 
 /**

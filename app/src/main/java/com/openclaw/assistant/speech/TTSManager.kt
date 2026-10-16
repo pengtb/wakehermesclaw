@@ -12,7 +12,7 @@ private const val TAG = "TTSManager"
 
 /**
  * Text-to-Speech Manager with support for multiple providers
- * (Local TTS, ElevenLabs, OpenAI, VOICEVOX)
+ * (Local TTS, ElevenLabs, OpenAI, OpenAI-compatible, VOICEVOX)
  */
 class TTSManager(private val context: Context) {
     
@@ -26,7 +26,7 @@ class TTSManager(private val context: Context) {
         providers[TTSProviderType.LOCAL] = AndroidTTSProvider(context)
         providers[TTSProviderType.ELEVENLABS] = ElevenLabsProvider(context)
         providers[TTSProviderType.OPENAI] = OpenAIProvider(context)
-        providers[TTSProviderType.RIG_QWEN] = RigQwenTTSProvider(context)
+        providers[TTSProviderType.OPENAI_COMPAT] = OpenAiCompatProvider(context)
         if (BuildConfig.FLAVOR == "full") {
             providers[TTSProviderType.VOICEVOX] = VoiceVoxProvider(context)
         }
@@ -149,7 +149,7 @@ class TTSManager(private val context: Context) {
         providers[TTSProviderType.LOCAL] = AndroidTTSProvider(context)
         providers[TTSProviderType.ELEVENLABS] = ElevenLabsProvider(context)
         providers[TTSProviderType.OPENAI] = OpenAIProvider(context)
-        providers[TTSProviderType.RIG_QWEN] = RigQwenTTSProvider(context)
+        providers[TTSProviderType.OPENAI_COMPAT] = OpenAiCompatProvider(context)
         if (BuildConfig.FLAVOR == "full") {
             providers[TTSProviderType.VOICEVOX] = VoiceVoxProvider(context)
         }
@@ -195,11 +195,11 @@ class TTSManager(private val context: Context) {
                 isConfigured = settings.openAiApiKey.isNotBlank()
             ),
             TTSProviderInfo(
-                type = TTSProviderType.RIG_QWEN,
-                displayName = "Rig Qwen TTS",
-                description = context.getString(R.string.tts_provider_rig_qwen_description),
+                type = TTSProviderType.OPENAI_COMPAT,
+                displayName = context.getString(R.string.tts_provider_openai_compat),
+                description = context.getString(R.string.tts_provider_openai_compat_description),
                 isAvailable = true,
-                isConfigured = settings.rigQwenUrl.isNotBlank()
+                isConfigured = settings.openAiCompatUrl.isNotBlank()
             ),
             TTSProviderInfo(
                 type = TTSProviderType.VOICEVOX,

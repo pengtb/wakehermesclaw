@@ -82,7 +82,7 @@
     <string name="av_bridge_token_not_generated">Not generated yet</string>
     <string name="av_bridge_rotate_token">Rotate token</string>
     <string name="av_bridge_capabilities_section">Capabilities</string>
-    <string name="av_bridge_capabilities_desc">These are separate from the Home screen toggles. Only checked groups are exposed through the local Bridge HTTP API.</string>
+    <string name="av_bridge_capabilities_desc">Only checked groups are exposed through the local Bridge HTTP API. The Camera / Location / SMS / Screen switches on the Home screen toggle these same groups.</string>
     <string name="av_bridge_service_enabled">Service enabled</string>
     <string name="av_bridge_enable_a11y_settings">Enable in Android Accessibility settings</string>
     <string name="av_bridge_pairing_checks">Pairing and checks</string>
@@ -410,23 +410,14 @@
     <string name="tts_provider_local">Local TTS</string>
     <string name="tts_provider_elevenlabs">ElevenLabs</string>
     <string name="tts_provider_openai">OpenAI TTS</string>
-    <string name="tts_provider_voicevox">VOICEVOX</string>
-    <string name="tts_provider_rig_qwen">Rig Qwen TTS</string>
-    <string name="elevenlabs_api_key_label">ElevenLabs API Key</string>
+    <string name="tts_provider_voicevox">VOICEVOX</string>    <string name="elevenlabs_api_key_label">ElevenLabs API Key</string>
     <string name="elevenlabs_voice_id_label">Voice ID</string>
     <string name="elevenlabs_model_label">Model</string>
     <string name="elevenlabs_custom_voice_help">You can also use the voice IDs created in your ElevenLabs dashboard</string>
     <string name="openai_api_key_label">OpenAI API Key</string>
     <string name="openai_voice_label">Voice</string>
     <string name="openai_model_label">Model</string>
-    <string name="voicevox_style_label">Character / Style</string>
-    <string name="rig_qwen_url_label">Server URL</string>
-    <string name="rig_qwen_speaker_label">Speaker</string>
-    <string name="rig_qwen_add_custom_voice">Add Custom Voice</string>
-    <string name="rig_qwen_voice_name_label">Voice name</string>
-    <string name="rig_qwen_voice_prompt_label">Voice description (prompt)</string>
-    <string name="rig_qwen_ref_text_label">Reference line (optional)</string>
-    <string name="add">Add</string>
+    <string name="voicevox_style_label">Character / Style</string>    <string name="add">Add</string>
     <string name="voicevox_terms_notice">Agree to the VOICEVOX terms of use</string>
     <string name="get_api_key">Get your API key here</string>
     <string name="preset_voice">Preset voice</string>
@@ -899,10 +890,7 @@
     <string name="tts_error_unknown_type">Unknown TTS type: %1$s</string>
     <string name="tts_error_provider_unavailable">%1$s is not available</string>
     <string name="tts_error_elevenlabs_no_apikey">ElevenLabs API key is not set</string>
-    <string name="tts_error_openai_no_apikey">OpenAI API key is not set</string>
-    <string name="tts_error_rig_qwen_no_url">Rig Qwen TTS server URL is not set</string>
-    <string name="tts_provider_rig_qwen_description">Qwen3-TTS on the Windows GPU box</string>
-    <string name="tts_error_voicevox_dict_missing">OpenJTalk dictionary not found</string>
+    <string name="tts_error_openai_no_apikey">OpenAI API key is not set</string>    <string name="tts_error_voicevox_dict_missing">OpenJTalk dictionary not found</string>
     <string name="tts_error_voicevox_dict_required">The OpenJTalk dictionary is required</string>
     <string name="tts_error_voicevox_not_initialized">VOICEVOX is not initialized</string>
     <string name="tts_error_voicevox_terms_required">Please agree to the VOICEVOX terms of use</string>
@@ -1075,4 +1063,29 @@
     <string name="av_bridge_now_running">Now: port %1$d (%2$s)</string>
     <string name="av_bridge_now_stopped">Now: not running</string>
     <string name="av_bridge_pending">After restart: port %1$d (%2$s)</string>
+    <string name="tts_provider_openai_compat">OpenAI compatible</string>
+    <string name="tts_provider_openai_compat_description">Any server that speaks OpenAI /v1/audio/speech (local Qwen3-TTS, Kokoro, …)</string>
+    <string name="tts_error_openai_compat_no_url">Server URL not set</string>
+    <string name="tts_error_synthesis_failed">Failed to synthesize speech</string>
+    <string name="tts_error_save_failed">Failed to save audio</string>
+    <string name="tts_error_playback_failed">Failed to play audio</string>
+    <string name="openai_compat_hint">POSTs to {server}/v1/audio/speech — point it at a local or self-hosted TTS server. Leave the API key empty when the server does not check it.</string>
+    <string name="openai_compat_url_label">Server URL</string>
+    <string name="openai_compat_model_label">Model</string>
+    <string name="openai_compat_voice_label">Voice</string>
+    <string name="openai_compat_api_key_label">API key (optional)</string>
+    <string name="tts_engine_hint_title">No speech synthesis engine found</string>
+    <string name="tts_engine_hint_message">Local TTS requires a system-level speech synthesis engine, and none is currently installed on this device. Install the offline English engine from sherpa-onnx: download the arm64-v8a eng package from the tts-engine-new folder at https://huggingface.co/csukuangfj2/sherpa-onnx-apk. Once installed, the engine will appear in the "TTS engine" list on this page; select it to use local TTS.</string>
+    <string name="tts_engine_hint_ok">Got it</string>
+    <string name="home_connection_section_title">Connection</string>
+    <string name="diag_stt_not_found">Speech recognition service not found. Make sure the Google app is installed.</string>
+    <string name="diag_action_open_store">Open Store</string>
+    <string name="diag_tts_hidden">Google TTS is installed but hidden by the system. This is a common MIUI issue.</string>
+    <string name="diag_tts_null">TTS engine could not be initialized (engine is null).</string>
+    <string name="diag_action_fix_in_settings">Fix in Settings</string>
+    <string name="diag_tts_lang_missing">Voice data for %1$s is missing in %2$s.</string>
+    <string name="diag_action_manage_data">Manage Data</string>
+    <string name="diag_tts_switch_google">Currently using %1$s. Switch to Google for better support.</string>
+    <string name="diag_action_select_google">Select Google</string>
+    <string name="diag_engine_default">System Default</string>
 </resources>

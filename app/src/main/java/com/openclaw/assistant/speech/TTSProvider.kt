@@ -3,7 +3,7 @@ package com.openclaw.assistant.speech
 import kotlinx.coroutines.flow.Flow
 
 /**
- * Common interface for all TTS providers (Local, ElevenLabs, OpenAI, VOICEVOX)
+ * Common interface for all TTS providers (Local, ElevenLabs, OpenAI, OpenAI-compatible, VOICEVOX)
  */
 interface TTSProvider {
     /**
@@ -74,5 +74,5 @@ object TTSProviderType {
     const val ELEVENLABS = "elevenlabs"
     const val OPENAI = "openai"
     const val VOICEVOX = "voicevox"
-    const val RIG_QWEN = "rig_qwen"
+    const val OPENAI_COMPAT = "openai_compat"
 }

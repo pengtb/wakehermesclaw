@@ -810,7 +810,7 @@
     <string name="av_bridge_token_not_generated">まだ生成されていません</string>
     <string name="av_bridge_rotate_token">トークンを再生成</string>
     <string name="av_bridge_capabilities_section">機能</string>
-    <string name="av_bridge_capabilities_desc">ホーム画面のトグルとは別設定です。チェックしたグループだけがローカルブリッジAPIに公開されます。</string>
+    <string name="av_bridge_capabilities_desc">チェックしたグループだけがローカルブリッジ HTTP API に公開されます。ホーム画面のカメラ／位置情報／SMS／画面のスイッチは同じグループを切り替えます。</string>
     <string name="av_bridge_service_enabled">サービス有効</string>
     <string name="av_bridge_enable_a11y_settings">Androidのユーザー補助設定で有効化してください</string>
     <string name="av_bridge_pairing_checks">ペアリングとチェック</string>
@@ -944,6 +944,18 @@
     <string name="permissions_for_agent_voice_title">Android端末機能</string>
     <string name="av_home_disconnected">未接続</string>
     <string name="av_home_test_ok_short">成功</string>
-    <string name="av_home_test_failed_short">失敗</string>
-    <string name="tts_error_rig_qwen_no_url">Rig Qwen TTS のサーバーURLが設定されていません</string>
+    <string name="av_home_test_failed_short">失敗</string>    <string name="tts_provider_openai_compat">OpenAI 互換</string>
+    <string name="tts_provider_openai_compat_description">OpenAI /v1/audio/speech に対応した任意のサーバー（ローカルの Qwen3-TTS、Kokoro など）</string>
+    <string name="tts_error_openai_compat_no_url">サーバー URL が未設定です</string>
+    <string name="tts_error_synthesis_failed">音声合成に失敗しました</string>
+    <string name="tts_error_save_failed">音声の保存に失敗しました</string>
+    <string name="tts_error_playback_failed">音声の再生に失敗しました</string>
+    <string name="openai_compat_hint">{サーバー}/v1/audio/speech に POST します。ローカル／自前の TTS サーバーを指定できます。サーバーがキーを検証しない場合は API キーを空のままにしてください。</string>
+    <string name="openai_compat_url_label">サーバー URL</string>
+    <string name="openai_compat_model_label">モデル</string>
+    <string name="openai_compat_voice_label">音色</string>
+    <string name="openai_compat_api_key_label">API キー（任意）</string>
+    <string name="tts_engine_hint_title">音声合成エンジンが見つかりません</string>
+    <string name="tts_engine_hint_message">ローカル TTS は端末側の音声合成エンジンを使用しますが、現在この端末にはインストールされていません。sherpa-onnx のオフライン日本語エンジンをインストールしてください: https://huggingface.co/csukuangfj2/sherpa-onnx-apk の tts-engine-new フォルダーから arm64-v8a の jpn パッケージをダウンロードします。インストール後、本ページの「TTS エンジン」一覧に表示されるため、それを選択してください。</string>
+    <string name="tts_engine_hint_ok">了解</string>
 </resources>

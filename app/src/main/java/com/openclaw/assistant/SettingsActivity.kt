@@ -327,10 +327,14 @@ fun SettingsScreen(
     var openAiVoice by rememberSaveable { mutableStateOf(settings.openAiVoice) }
     var showOpenAiApiKey by rememberSaveable { mutableStateOf(false) }
 
-    // Rig Qwen TTS
-    var rigQwenUrl by rememberSaveable { mutableStateOf(settings.rigQwenUrl) }
-    var rigQwenSpeaker by rememberSaveable { mutableStateOf(settings.rigQwenSpeaker) }
-    var rigQwenCustomVoices by rememberSaveable { mutableStateOf(settings.rigQwenCustomVoices) }
+    // OpenAI 兼容 TTS
+    var openAiCompatUrl by rememberSaveable { mutableStateOf(settings.openAiCompatUrl) }
+    var openAiCompatModel by rememberSaveable { mutableStateOf(settings.openAiCompatModel) }
+    var openAiCompatVoice by rememberSaveable { mutableStateOf(settings.openAiCompatVoice) }
+    var openAiCompatApiKey by rememberSaveable { mutableStateOf(settings.openAiCompatApiKey) }
+    var showOpenAiCompatApiKey by rememberSaveable { mutableStateOf(false) }
+    // 本地 TTS 但系统里没有任何 TTS 引擎 → 保存后弹提示装 sherpa-onnx（渲染在本屏，两个宿主都覆盖）
+    val showTtsEngineHint = remember { mutableStateOf(false) }
     
     // VOICEVOX
     var voiceVoxStyleId by rememberSaveable { mutableStateOf(settings.voiceVoxStyleId) }
@@ -523,9 +527,16 @@ fun SettingsScreen(
                                 settings.elevenLabsSpeed = elevenLabsSpeed
                                 settings.openAiApiKey = openAiApiKey
                                 settings.openAiVoice = openAiVoice
-                                settings.rigQwenUrl = rigQwenUrl
-                                settings.rigQwenSpeaker = rigQwenSpeaker
-                                settings.rigQwenCustomVoices = rigQwenCustomVoices
+                                settings.openAiCompatUrl = openAiCompatUrl.trim()
+                                settings.openAiCompatModel = openAiCompatModel.trim()
+                                settings.openAiCompatVoice = openAiCompatVoice.trim()
+                                settings.openAiCompatApiKey = openAiCompatApiKey.trim()
+                                // 选了本地 TTS、但系统里一个 TTS 引擎都没有 → 保存后提示去装 sherpa-onnx
+                                if (ttsType == SettingsRepository.TTS_TYPE_LOCAL &&
+                                    com.openclaw.assistant.speech.TTSEngineUtils.getAvailableEngines(context).isEmpty()
+                                ) {
+                                    showTtsEngineHint.value = true
+                                }
                                 settings.voiceVoxStyleId = voiceVoxStyleId
                                 settings.voiceVoxTermsAccepted = voiceVoxTermsAccepted
                                 settings.continuousMode = continuousMode
@@ -1185,15 +1196,15 @@ fun SettingsScreen(
                                 SettingsRepository.TTS_TYPE_ELEVENLABS -> "ElevenLabs"
                                 SettingsRepository.TTS_TYPE_OPENAI -> "OpenAI"
                                 SettingsRepository.TTS_TYPE_VOICEVOX -> "VOICEVOX"
-                                SettingsRepository.TTS_TYPE_RIG_QWEN -> "Rig Qwen TTS"
-                                else -> "System TTS"
+                                SettingsRepository.TTS_TYPE_OPENAI_COMPAT -> stringResource(R.string.tts_provider_openai_compat)
+                                else -> stringResource(R.string.tts_provider_local_name)
                             }
                             
                             OutlinedTextField(
                                 value = ttsTypeLabel,
                                 onValueChange = {},
                                 readOnly = true,
-                                label = { Text("TTS種別") },
+                                label = { Text(stringResource(R.string.tts_provider_label)) },
                                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = showTtsTypeMenu) },
                                 modifier = Modifier.fillMaxWidth().menuAnchor()
                             )
@@ -1203,7 +1214,7 @@ fun SettingsScreen(
                                 onDismissRequest = { showTtsTypeMenu = false }
                             ) {
                                 DropdownMenuItem(
-                                    text = { Text("System TTS") },
+                                    text = { Text(stringResource(R.string.tts_provider_local_name)) },
                                     onClick = {
                                         ttsType = SettingsRepository.TTS_TYPE_LOCAL
                                         showTtsTypeMenu = false
@@ -1253,13 +1264,13 @@ fun SettingsScreen(
                                     )
                                 }
                                 DropdownMenuItem(
-                                    text = { Text("Rig Qwen TTS") },
+                                    text = { Text(stringResource(R.string.tts_provider_openai_compat)) },
                                     onClick = {
-                                        ttsType = SettingsRepository.TTS_TYPE_RIG_QWEN
+                                        ttsType = SettingsRepository.TTS_TYPE_OPENAI_COMPAT
                                         showTtsTypeMenu = false
                                     },
                                     leadingIcon = {
-                                        if (ttsType == SettingsRepository.TTS_TYPE_RIG_QWEN) {
+                                        if (ttsType == SettingsRepository.TTS_TYPE_OPENAI_COMPAT) {
                                             Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                                         }
                                     }
@@ -1304,17 +1315,22 @@ fun SettingsScreen(
                                     )
                                 }
                             }
-                            SettingsRepository.TTS_TYPE_RIG_QWEN -> {
+                            SettingsRepository.TTS_TYPE_OPENAI_COMPAT -> {
                                 Spacer(modifier = Modifier.height(16.dp))
-                                RigQwenSettingsCard(
-                                    url = rigQwenUrl,
-                                    onUrlChange = { rigQwenUrl = it },
-                                    speaker = rigQwenSpeaker,
-                                    onSpeakerChange = { rigQwenSpeaker = it },
-                                    customVoicesJson = rigQwenCustomVoices,
-                                    onCustomVoicesChange = { rigQwenCustomVoices = it }
+                                OpenAiCompatSettingsCard(
+                                    url = openAiCompatUrl,
+                                    onUrlChange = { openAiCompatUrl = it },
+                                    model = openAiCompatModel,
+                                    onModelChange = { openAiCompatModel = it },
+                                    voice = openAiCompatVoice,
+                                    onVoiceChange = { openAiCompatVoice = it },
+                                    apiKey = openAiCompatApiKey,
+                                    onApiKeyChange = { openAiCompatApiKey = it },
+                                    showApiKey = showOpenAiCompatApiKey,
+                                    onShowApiKeyChange = { showOpenAiCompatApiKey = it }
                                 )
                             }
+
                             else -> {
                                 // System TTS - show engine selection
                                 Spacer(modifier = Modifier.height(16.dp))
@@ -1952,6 +1968,7 @@ fun SettingsScreen(
         }
     }
 
+        com.openclaw.assistant.ui.settings.TtsEngineHintDialog(visible = showTtsEngineHint)
 }
 
 data class TestResult(
@@ -2618,32 +2635,21 @@ fun OpenAISettingsCard(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun RigQwenSettingsCard(
+fun OpenAiCompatSettingsCard(
     url: String,
     onUrlChange: (String) -> Unit,
-    speaker: String,
-    onSpeakerChange: (String) -> Unit,
-    customVoicesJson: String,
-    onCustomVoicesChange: (String) -> Unit,
+    model: String,
+    onModelChange: (String) -> Unit,
+    voice: String,
+    onVoiceChange: (String) -> Unit,
+    apiKey: String,
+    onApiKeyChange: (String) -> Unit,
+    showApiKey: Boolean,
+    onShowApiKeyChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    val builtinSpeakers = com.openclaw.assistant.speech.RigQwenTTSProvider.RIG_QWEN_SPEAKERS
-    val customVoices = remember(customVoicesJson) {
-        com.openclaw.assistant.speech.RigQwenTTSProvider.parseCustomVoices(customVoicesJson)
-    }
-    var speakerExpanded by remember { mutableStateOf(false) }
-    var showAddDialog by remember { mutableStateOf(false) }
-    var newName by remember { mutableStateOf("") }
-    var newInstruct by remember { mutableStateOf("") }
-    var newRefText by remember { mutableStateOf("") }
-    var creatingVoice by remember { mutableStateOf(false) }
-    var createError by remember { mutableStateOf<String?>(null) }
-
-    val provider = remember { com.openclaw.assistant.speech.RigQwenTTSProvider(context) }
-
     Card(
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -2652,234 +2658,66 @@ fun RigQwenSettingsCard(
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                "Rig Qwen TTS Settings",
+                stringResource(R.string.tts_provider_openai_compat),
                 style = MaterialTheme.typography.titleSmall
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                stringResource(R.string.openai_compat_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(modifier = Modifier.height(12.dp))
 
             OutlinedTextField(
                 value = url,
                 onValueChange = onUrlChange,
-                label = { Text(stringResource(R.string.rig_qwen_url_label)) },
-                placeholder = { Text("http://100.95.34.108:8799") },
+                label = { Text(stringResource(R.string.openai_compat_url_label)) },
+                placeholder = { Text("http://127.0.0.1:8000") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri)
             )
-            Text(
-                "Qwen3-TTS CustomVoice server (rig_tts_server.py). No API key needed.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 4.dp)
-            )
-
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Speaker picker: built-in timbres + user custom voices.
-            ExposedDropdownMenuBox(
-                expanded = speakerExpanded,
-                onExpandedChange = { speakerExpanded = it }
-            ) {
-                OutlinedTextField(
-                    value = speaker,
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text(stringResource(R.string.rig_qwen_speaker_label)) },
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = speakerExpanded) },
-                    modifier = Modifier.fillMaxWidth().menuAnchor()
-                )
+            OutlinedTextField(
+                value = model,
+                onValueChange = onModelChange,
+                label = { Text(stringResource(R.string.openai_compat_model_label)) },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
+            )
+            Spacer(modifier = Modifier.height(8.dp))
 
-                ExposedDropdownMenu(
-                    expanded = speakerExpanded,
-                    onDismissRequest = { speakerExpanded = false }
-                ) {
-                    builtinSpeakers.forEach { option ->
-                        DropdownMenuItem(
-                            text = { Text(option) },
-                            onClick = {
-                                onSpeakerChange(option)
-                                speakerExpanded = false
-                            },
-                            leadingIcon = {
-                                if (speaker == option) {
-                                    Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                                }
-                            }
+            OutlinedTextField(
+                value = voice,
+                onValueChange = onVoiceChange,
+                label = { Text(stringResource(R.string.openai_compat_voice_label)) },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+
+            OutlinedTextField(
+                value = apiKey,
+                onValueChange = onApiKeyChange,
+                label = { Text(stringResource(R.string.openai_compat_api_key_label)) },
+                trailingIcon = {
+                    IconButton(onClick = { onShowApiKeyChange(!showApiKey) }) {
+                        Icon(
+                            if (showApiKey) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                            contentDescription = stringResource(if (showApiKey) R.string.action_hide_api_key else R.string.action_show_api_key)
                         )
                     }
-                    if (customVoices.isNotEmpty()) {
-                        HorizontalDivider()
-                        customVoices.forEach { cv ->
-                            DropdownMenuItem(
-                                text = {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(
-                                            Icons.Default.Star,
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.size(16.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(6.dp))
-                                        Text(cv.name)
-                                    }
-                                },
-                                onClick = {
-                                    onSpeakerChange(cv.name)
-                                    speakerExpanded = false
-                                },
-                                leadingIcon = {
-                                    if (speaker == cv.name) {
-                                        Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                                    }
-                                }
-                            )
-                        }
-                    }
-                }
-            }
-
-            // Custom voice management
-            Spacer(modifier = Modifier.height(12.dp))
-            Text(
-                "Custom Voices (one-time design + clone profile)",
-                style = MaterialTheme.typography.titleSmall
+                },
+                visualTransformation = if (showApiKey) VisualTransformation.None else PasswordVisualTransformation(),
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
             )
-            Spacer(modifier = Modifier.height(4.dp))
-            if (customVoices.isEmpty()) {
-                Text(
-                    "No custom voices yet. Add one with a natural-language prompt describing the voice — it's designed once, then reused like a saved profile.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            } else {
-                customVoices.forEach { cv ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(cv.name, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-                        TextButton(onClick = {
-                            scope.launch {
-                                provider.deleteCustomVoice(cv.name)
-                                val remaining = customVoices.filter { it.name != cv.name }
-                                onCustomVoicesChange(
-                                    com.openclaw.assistant.speech.RigQwenTTSProvider.serializeCustomVoices(remaining)
-                                )
-                            }
-                        }) {
-                            Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error)
-                        }
-                    }
-                }
-            }
-            TextButton(onClick = { showAddDialog = true }) {
-                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(stringResource(R.string.rig_qwen_add_custom_voice))
-            }
         }
     }
 
-    if (showAddDialog) {
-        AlertDialog(
-            onDismissRequest = {
-                if (!creatingVoice) showAddDialog = false
-            },
-            title = { Text(stringResource(R.string.rig_qwen_add_custom_voice)) },
-            text = {
-                Column {
-                    if (createError != null) {
-                        Text(
-                            createError.orEmpty(),
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                    }
-                    OutlinedTextField(
-                        value = newName,
-                        onValueChange = { newName = it },
-                        label = { Text(stringResource(R.string.rig_qwen_voice_name_label)) },
-                        singleLine = true,
-                        enabled = !creatingVoice,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedTextField(
-                        value = newInstruct,
-                        onValueChange = { newInstruct = it },
-                        label = { Text(stringResource(R.string.rig_qwen_voice_prompt_label)) },
-                        placeholder = { Text("e.g. A warm grandmotherly voice, gentle and patient, with a soft rasp.") },
-                        minLines = 3,
-                        enabled = !creatingVoice,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedTextField(
-                        value = newRefText,
-                        onValueChange = { newRefText = it },
-                        label = { Text(stringResource(R.string.rig_qwen_ref_text_label)) },
-                        placeholder = { Text("(optional) e.g. Hello! This is my voice.") },
-                        minLines = 2,
-                        enabled = !creatingVoice,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    if (creatingVoice) {
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                "Designing voice & building profile (can take ~1 min on first use)…",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    enabled = newName.isNotBlank() && newInstruct.isNotBlank() && !creatingVoice,
-                    onClick = {
-                        createError = null
-                        creatingVoice = true
-                        scope.launch {
-                            val result = provider.createCustomVoice(
-                                name = newName,
-                                instruct = newInstruct,
-                                refText = newRefText,
-                            )
-                            creatingVoice = false
-                            result.onSuccess { createdName ->
-                                val updated = customVoices + com.openclaw.assistant.speech.RigQwenTTSProvider.RigQwenCustomVoice(
-                                    name = createdName,
-                                    instruct = newInstruct.trim()
-                                )
-                                onCustomVoicesChange(com.openclaw.assistant.speech.RigQwenTTSProvider.serializeCustomVoices(updated))
-                                newName = ""
-                                newInstruct = ""
-                                newRefText = ""
-                                showAddDialog = false
-                            }.onFailure { e ->
-                                createError = e.message ?: "Failed to create voice"
-                            }
-                        }
-                    }
-                ) {
-                    Text(stringResource(R.string.add))
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    enabled = !creatingVoice,
-                    onClick = { showAddDialog = false }
-                ) {
-                    Text(stringResource(R.string.cancel))
-                }
-            }
-        )
-    }
 }
 
 @Composable

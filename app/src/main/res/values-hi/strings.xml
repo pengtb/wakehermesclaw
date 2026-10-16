@@ -854,4 +854,18 @@
     <string name="settings_category_support_desc">समस्या रिपोर्ट, अपडेट जांच, संस्करण, सहायता लिंक</string>
     <string name="settings_category_credits_desc">लाइसेंस, आभार, और प्रोजेक्ट सहायता</string>
     <string name="tab_nav_terminal">टर्मिनल</string>
+    <string name="tts_provider_openai_compat">OpenAI संगत</string>
+    <string name="tts_provider_openai_compat_description">OpenAI /v1/audio/speech समर्थित कोई भी सर्वर (लोकल Qwen3-TTS, Kokoro आदि)</string>
+    <string name="tts_error_openai_compat_no_url">सर्वर URL सेट नहीं है</string>
+    <string name="tts_error_synthesis_failed">वाक् संश्लेषण विफल</string>
+    <string name="tts_error_save_failed">ऑडियो सहेजना विफल</string>
+    <string name="tts_error_playback_failed">ऑडियो चलाना विफल</string>
+    <string name="openai_compat_hint">{सर्वर}/v1/audio/speech पर POST करता है — लोकल या स्वयं-होस्टेड TTS सर्वर के लिए। यदि सर्वर कुंजी नहीं जाँचता तो API कुंजी खाली छोड़ें।</string>
+    <string name="openai_compat_url_label">सर्वर URL</string>
+    <string name="openai_compat_model_label">मॉडल</string>
+    <string name="openai_compat_voice_label">वाणी</string>
+    <string name="openai_compat_api_key_label">API कुंजी (वैकल्पिक)</string>
+    <string name="tts_engine_hint_title">कोई वाक् संश्लेषण इंजन नहीं मिला</string>
+    <string name="tts_engine_hint_message">लोकल TTS को सिस्टम-स्तरीय वाक् संश्लेषण इंजन चाहिए, और इस डिवाइस पर अभी कोई इंजन इंस्टॉल नहीं है। sherpa-onnx का ऑफ़लाइन हिंदी इंजन इंस्टॉल करें: https://huggingface.co/csukuangfj2/sherpa-onnx-apk के tts-engine-new फ़ोल्डर से arm64-v8a hin पैकेज डाउनलोड करें। इंस्टॉल होने के बाद यह इस पृष्ठ की 「TTS इंजन」 सूची में दिखेगा; उसे चुनकर लोकल TTS इस्तेमाल करें।</string>
+    <string name="tts_engine_hint_ok">समझ गया</string>
 </resources>

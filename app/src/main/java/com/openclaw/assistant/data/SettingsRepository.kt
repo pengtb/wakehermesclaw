@@ -234,23 +234,22 @@ class SettingsRepository(context: Context) {
         get() = prefs.getString(KEY_OPENAI_MODEL, DEFAULT_OPENAI_MODEL) ?: DEFAULT_OPENAI_MODEL
         set(value) = prefs.edit().putString(KEY_OPENAI_MODEL, value).apply()
 
-    // Rig Qwen TTS settings
-    var rigQwenUrl: String
-        get() = prefs.getString(KEY_RIG_QWEN_URL, DEFAULT_RIG_QWEN_URL) ?: DEFAULT_RIG_QWEN_URL
-        set(value) = prefs.edit().putString(KEY_RIG_QWEN_URL, value).apply()
+    // OpenAI 兼容 TTS（自建/本地服务：POST {baseUrl}/v1/audio/speech）
+    var openAiCompatUrl: String
+        get() = prefs.getString(KEY_OPENAI_COMPAT_URL, "") ?: ""
+        set(value) = prefs.edit().putString(KEY_OPENAI_COMPAT_URL, value).apply()
 
-    var rigQwenSpeaker: String
-        get() = prefs.getString(KEY_RIG_QWEN_SPEAKER, DEFAULT_RIG_QWEN_SPEAKER) ?: DEFAULT_RIG_QWEN_SPEAKER
-        set(value) = prefs.edit().putString(KEY_RIG_QWEN_SPEAKER, value).apply()
+    var openAiCompatModel: String
+        get() = prefs.getString(KEY_OPENAI_COMPAT_MODEL, DEFAULT_OPENAI_COMPAT_MODEL) ?: DEFAULT_OPENAI_COMPAT_MODEL
+        set(value) = prefs.edit().putString(KEY_OPENAI_COMPAT_MODEL, value).apply()
 
-    /**
-     * User-defined custom voices for the rig's VoiceDesign endpoint.
-     * Stored as a JSON array of {"name": "...", "instruct": "..."}.
-     * Empty string = no custom voices defined.
-     */
-    var rigQwenCustomVoices: String
-        get() = prefs.getString(KEY_RIG_QWEN_CUSTOM_VOICES, "") ?: ""
-        set(value) = prefs.edit().putString(KEY_RIG_QWEN_CUSTOM_VOICES, value).apply()
+    var openAiCompatVoice: String
+        get() = prefs.getString(KEY_OPENAI_COMPAT_VOICE, DEFAULT_OPENAI_COMPAT_VOICE) ?: DEFAULT_OPENAI_COMPAT_VOICE
+        set(value) = prefs.edit().putString(KEY_OPENAI_COMPAT_VOICE, value).apply()
+
+    var openAiCompatApiKey: String
+        get() = prefs.getString(KEY_OPENAI_COMPAT_API_KEY, "") ?: ""
+        set(value) = prefs.edit().putString(KEY_OPENAI_COMPAT_API_KEY, value).apply()
     
     // VOICEVOX settings
     var voiceVoxSpeakerId: Int
@@ -431,9 +430,10 @@ class SettingsRepository(context: Context) {
         private const val KEY_OPENAI_API_KEY = "openai_api_key"
         private const val KEY_OPENAI_VOICE = "openai_voice"
         private const val KEY_OPENAI_MODEL = "openai_model"
-        private const val KEY_RIG_QWEN_URL = "rig_qwen_url"
-        private const val KEY_RIG_QWEN_SPEAKER = "rig_qwen_speaker"
-        private const val KEY_RIG_QWEN_CUSTOM_VOICES = "rig_qwen_custom_voices"
+        private const val KEY_OPENAI_COMPAT_URL = "openai_compat_url"
+        private const val KEY_OPENAI_COMPAT_MODEL = "openai_compat_model"
+        private const val KEY_OPENAI_COMPAT_VOICE = "openai_compat_voice"
+        private const val KEY_OPENAI_COMPAT_API_KEY = "openai_compat_api_key"
         private const val KEY_VOICEVOX_SPEAKER_ID = "voicevox_speaker_id"
         private const val KEY_VOICEVOX_STYLE_ID = "voicevox_style_id"
         private const val KEY_VOICEVOX_TERMS_ACCEPTED = "voicevox_terms_accepted"
@@ -464,7 +464,7 @@ class SettingsRepository(context: Context) {
         const val TTS_TYPE_ELEVENLABS = "elevenlabs"
         const val TTS_TYPE_OPENAI = "openai"
         const val TTS_TYPE_VOICEVOX = "voicevox"
-        const val TTS_TYPE_RIG_QWEN = "rig_qwen"
+        const val TTS_TYPE_OPENAI_COMPAT = "openai_compat"
         
         // Default ElevenLabs voice ID (empty - user must set)
         const val DEFAULT_ELEVENLABS_VOICE_ID = ""
@@ -475,8 +475,8 @@ class SettingsRepository(context: Context) {
         const val DEFAULT_OPENAI_MODEL = "gpt-4o-mini-tts"
 
         // Default Rig Qwen TTS (Windows GPU box, Qwen3-TTS CustomVoice)
-        const val DEFAULT_RIG_QWEN_URL = "http://100.95.34.108:8799"
-        const val DEFAULT_RIG_QWEN_SPEAKER = "ryan"
+        const val DEFAULT_OPENAI_COMPAT_MODEL = "tts-1"
+        const val DEFAULT_OPENAI_COMPAT_VOICE = "alloy"
         
         // Default VOICEVOX speaker (none - user must select and download)
         const val DEFAULT_VOICEVOX_SPEAKER_ID = 0
