@@ -38,12 +38,17 @@
 - `bindMode` / `port` 只在 `MobileBridgeServer.start()` 读取一次 → 必须重建 server 才生效；
   保存时由 `MobileBridgeService.restartIfRunning()` 触发（`ACTION_RESTART`：stop → 400ms → start，
   留出端口释放时间）。
-- 运行时真实绑定状态记在 `MobileBridgeConfig.serverRunning`（`MobileBridgeServer` 在 bind 成功 / stop 时写），
-  设置页状态卡用它显示「目前在 / 拟在」两行。改了配置但没重启时两行会不一致——这是判断"保存时重启是否生效"的依据。
+- 运行时真实绑定状态记在 `MobileBridgeConfig.serverRunning`（`MobileBridgeServer` 在 bind 成功 / stop 时写）。
+  **界面上所有"是否在运行"的信号（开关、状态点、API chip）都读它，不要读持久化的 `cfg.enabled`**：
+  没有开机/启动时自动拉起桥的逻辑，所以重启 app 后设置值仍是 true 而服务确实没跑，读设置值的开关会
+  "显示开着但根本没监听"。设置页状态卡的「目前在 / 拟在」两行同样用它——改了配置但没重启时两行会不一致，
+  这是判断"保存时重启是否生效"的依据。
+- 桥的**开关在主页**「连接状态」卡片下方（`ui/bridge/MobileBridgeSwitchCard.kt`），拨动直接写设置并
+  `MobileBridgeService.start/stop`、立即生效；设置页只留信息展示（端口 / 绑定模式 / 审批模式等仍需按保存生效）。
 - `approvalMode` / `allowedCapabilityGroups` / token 是每请求读取，改完即时生效。
 - 能力组改了"看起来没生效"，通常是 Hermes 侧缓存的 `/manifest` 过期，重读 manifest 即可，不要重启桥。
-- 高风险能力里，**相机仍是上游占位实现**（`camera.capture_photo` 的 `isAvailable=false`，`/manifest` 里不列）；
-  `apps.launch` 会被 Android 10+ 的后台启动限制静默拦截。
+- 高风险能力里只剩 `apps.launch` 是已知受限项：它会被 Android 10+ 的后台启动限制静默拦截（BAL），
+  只做「看起来成功」的处理。
 - 截图已实现，**两段式，不要退回成一段**：`screen.screenshot`（HIGH）只做抓屏 + 缩放 + JPEG，把字节塞进
   `ScreenCaptureStore`（内存、TTL 5 分钟、最多 4 张、≤48MB、不落盘），返回元数据 + `id`；
   `screen.screenshot.fetch {id}`（MEDIUM）才回 base64。把像素内联进第一段会让每个只想判断"画面变没变"的
