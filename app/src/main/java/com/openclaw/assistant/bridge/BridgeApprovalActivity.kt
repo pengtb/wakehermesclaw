@@ -90,16 +90,28 @@ private fun ApprovalPane(
         Text(androidx.compose.ui.res.stringResource(com.openclaw.assistant.R.string.av_approval_args), style = MaterialTheme.typography.labelLarge)
         Text(argumentsJson, style = MaterialTheme.typography.bodySmall)
         Spacer(Modifier.height(24.dp))
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            OutlinedButton(onClick = onDeny) { Text(androidx.compose.ui.res.stringResource(com.openclaw.assistant.R.string.av_approval_deny)) }
-            Button(onClick = { onApprove(0L) }) { Text(androidx.compose.ui.res.stringResource(com.openclaw.assistant.R.string.av_approval_once)) }
-        }
-        if (!destructive) {
-            Spacer(Modifier.height(8.dp))
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = { onApprove(10 * 60_000L) }) { Text(androidx.compose.ui.res.stringResource(com.openclaw.assistant.R.string.av_approval_10min)) }
-                OutlinedButton(onClick = { onApprove(60 * 60_000L) }) { Text(androidx.compose.ui.res.stringResource(com.openclaw.assistant.R.string.av_approval_1hr)) }
-                OutlinedButton(onClick = { onApprove(Long.MAX_VALUE) }) { Text(androidx.compose.ui.res.stringResource(com.openclaw.assistant.R.string.av_approval_always)) }
+        // One button per line: the previous two-Row layout squeezed three buttons into a single
+        // row, which made the "always allow" label wrap into a tall vertical pill.
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Button(onClick = { onApprove(0L) }, modifier = Modifier.fillMaxWidth()) {
+                Text(androidx.compose.ui.res.stringResource(com.openclaw.assistant.R.string.av_approval_once))
+            }
+            if (!destructive) {
+                OutlinedButton(onClick = { onApprove(10 * 60_000L) }, modifier = Modifier.fillMaxWidth()) {
+                    Text(androidx.compose.ui.res.stringResource(com.openclaw.assistant.R.string.av_approval_10min))
+                }
+                OutlinedButton(onClick = { onApprove(60 * 60_000L) }, modifier = Modifier.fillMaxWidth()) {
+                    Text(androidx.compose.ui.res.stringResource(com.openclaw.assistant.R.string.av_approval_1hr))
+                }
+                OutlinedButton(onClick = { onApprove(Long.MAX_VALUE) }, modifier = Modifier.fillMaxWidth()) {
+                    Text(androidx.compose.ui.res.stringResource(com.openclaw.assistant.R.string.av_approval_always))
+                }
+            }
+            OutlinedButton(onClick = onDeny, modifier = Modifier.fillMaxWidth()) {
+                Text(androidx.compose.ui.res.stringResource(com.openclaw.assistant.R.string.av_approval_deny))
             }
         }
     }
