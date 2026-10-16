@@ -23,12 +23,18 @@ in `EncryptedSharedPreferences` and is **never written to logs**.
 
 ## Enabling the bridge
 
-1. Open WakeHermesClaw → **Settings → Mobile Bridge**.
-2. Toggle **Enable Mobile Bridge**.
-3. Pick a **bind mode**:
+1. Open WakeHermesClaw → **Home**. Under the **Connection status** card there
+   is a **Mobile Bridge** switch.
+2. Flip that switch on. It starts (or stops) the bridge immediately — there is
+   no Save button on this path. The switch mirrors the *actual* state: after an
+   app restart it reads **off** while nothing is listening, even though the
+   stored setting still says enabled.
+3. Open **Settings → Mobile Bridge** and pick a **bind mode**:
    - **Local only** (default, recommended) — phone software only.
    - **LAN / VPN** — exposed on `0.0.0.0`; protect with Tailscale or a
      trusted Wi-Fi. The UI shows a strong warning.
+   (Port / bind mode changes take effect when you tap **Save**, which restarts
+   the bridge with the new configuration.)
 4. Tap **Generate token** and copy it.
 5. Open the **Capability allowlist** and enable the groups you want
    Hermes to access (`device`, `apps`, `clipboard.read`, …).

@@ -747,6 +747,9 @@ fun MainScreen(
                 onOpenClawTest = { runtime.connectManual() },
             )
             Spacer(modifier = Modifier.height(12.dp))
+            // 移动桥接开关就放在「连接状态」下面：它是控制而不是偏好，拨动立即生效（不需要保存）
+            com.openclaw.assistant.ui.bridge.MobileBridgeSwitchCard()
+            Spacer(modifier = Modifier.height(12.dp))
             // Show alert if missing scope error is present
             if (missingScopeError != null) {
                 MissingScopeCard(error = missingScopeError!!, onClick = onOpenSettings)

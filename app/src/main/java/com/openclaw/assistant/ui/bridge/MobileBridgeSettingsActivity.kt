@@ -67,7 +67,6 @@ import com.openclaw.assistant.bridge.BridgeActivityLog
 import com.openclaw.assistant.bridge.BridgeApprovalMode
 import com.openclaw.assistant.bridge.BridgeBindMode
 import com.openclaw.assistant.bridge.MobileBridgeConfig
-import com.openclaw.assistant.bridge.MobileBridgeService
 
 class MobileBridgeSettingsActivity : LocaleAwareActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -113,8 +112,8 @@ private fun MobileBridgeSettingsContent(
     val activityEntries by BridgeActivityLog.entries.collectAsState()
     var portText by remember(port) { mutableStateOf(port.toString()) }
     var showToken by remember { mutableStateOf(false) }
-    var rotated by remember { mutableStateOf(0) }
-    val token = remember(rotated, enabled) { cfg.tokenOrNull() ?: "" }
+    var tokenRevision by remember { mutableStateOf(0) }
+    val token = remember(tokenRevision, enabled) { cfg.tokenOrNull() ?: "" }
     val a11yEnabled = com.openclaw.assistant.bridge.accessibility.AgentVoiceAccessibilityService.isRunning()
     val scrollModifier = if (scrollable) Modifier.verticalScroll(rememberScrollState()) else Modifier
 
@@ -125,21 +124,10 @@ private fun MobileBridgeSettingsContent(
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
             BridgeStatusCard(
-                enabled = enabled,
                 port = port,
                 bindMode = bindMode,
                 running = serverRunning,
                 tokenPresent = token.isNotBlank(),
-                onEnabledChange = {
-                    cfg.setEnabled(it)
-                    if (it) {
-                        cfg.getOrCreateToken()
-                        rotated++
-                        MobileBridgeService.start(context)
-                    } else {
-                        MobileBridgeService.stop(context)
-                    }
-                },
             )
 
             SettingsCard(title = stringResource(R.string.av_bridge_connection_section), icon = Icons.Default.Link) {
@@ -217,7 +205,7 @@ private fun MobileBridgeSettingsContent(
                     }
                 }
                 Spacer(Modifier.height(8.dp))
-                OutlinedButton(onClick = { cfg.rotateToken(); rotated++; showToken = true }) {
+                OutlinedButton(onClick = { cfg.rotateToken(); tokenRevision++; showToken = true }) {
                     Icon(Icons.Default.Sync, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
                     Text(stringResource(R.string.av_bridge_rotate_token))
@@ -335,13 +323,15 @@ private fun MobileBridgeSettingsContent(
 
 @Composable
 private fun BridgeStatusCard(
-    enabled: Boolean,
     port: Int,
     bindMode: BridgeBindMode,
     running: MobileBridgeConfig.Running?,
     tokenPresent: Boolean,
-    onEnabledChange: (Boolean) -> Unit,
 ) {
+    // Informational only: the on/off control lives on the home screen (MobileBridgeSwitchCard).
+    // Every signal here follows the *actual* bound state (`running`), not the persisted setting:
+    // after an app restart the setting can still say enabled while nothing is listening.
+    val actuallyRunning = running != null
     ElevatedCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
@@ -349,7 +339,7 @@ private fun BridgeStatusCard(
     ) {
         Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                StatusDot(active = enabled)
+                StatusDot(active = actuallyRunning)
                 Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f)) {
                     Text(stringResource(R.string.mobile_bridge_title), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
@@ -366,11 +356,10 @@ private fun BridgeStatusCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                Switch(checked = enabled, onCheckedChange = onEnabledChange)
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 AssistChip(onClick = {}, label = { Text(if (tokenPresent) stringResource(R.string.av_bridge_token_ready) else stringResource(R.string.av_bridge_no_token)) })
-                AssistChip(onClick = {}, label = { Text(if (enabled) stringResource(R.string.av_bridge_api_active) else stringResource(R.string.av_bridge_api_stopped)) })
+                AssistChip(onClick = {}, label = { Text(if (actuallyRunning) stringResource(R.string.av_bridge_api_active) else stringResource(R.string.av_bridge_api_stopped)) })
             }
         }
     }
@@ -440,7 +429,7 @@ private fun StatusDot(active: Boolean) {
 }
 
 @Composable
-private fun modeLabel(m: BridgeBindMode) = when (m) {
+internal fun modeLabel(m: BridgeBindMode) = when (m) {
     BridgeBindMode.LOCAL_ONLY -> stringResource(R.string.av_bridge_bind_local)
     BridgeBindMode.LAN -> stringResource(R.string.av_bridge_bind_lan)
 }
