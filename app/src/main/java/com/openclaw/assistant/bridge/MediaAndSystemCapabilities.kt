@@ -186,7 +186,7 @@ object ScreenScreenshotCapability : BridgeCapability {
     override val description =
         "Capture the screen into a short-lived in-memory buffer. Stage 1 of 2: returns metadata " +
             "and an id (no pixels); call screen.screenshot.fetch with that id to get the JPEG bytes."
-    override val group = "accessibility"
+    override val group = "screen"
     override val riskLevel = RiskLevel.HIGH
     override val inputSchema = buildJsonObject {
         put("type", "object")
@@ -275,7 +275,7 @@ object ScreenScreenshotFetchCapability : BridgeCapability {
     override val name = "screen.screenshot.fetch"
     override val description =
         "Return the JPEG (base64) for an id produced by screen.screenshot; ids expire after a few minutes"
-    override val group = "accessibility"
+    override val group = "screen"
     override val riskLevel = RiskLevel.MEDIUM
     override val inputSchema = buildJsonObject {
         put("type", "object")

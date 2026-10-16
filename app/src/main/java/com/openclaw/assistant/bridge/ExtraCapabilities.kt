@@ -37,7 +37,7 @@ object WifiStatusCapability : BridgeCapability {
 object LocationGetCapability : BridgeCapability {
     override val name = "location.get"
     override val description = "Best-effort last known coarse location"
-    override val group = "device"
+    override val group = "location"
     override val riskLevel = RiskLevel.MEDIUM
     override val requiresPermissions = listOf(Manifest.permission.ACCESS_COARSE_LOCATION)
     override fun isAvailable(context: Context): Boolean =

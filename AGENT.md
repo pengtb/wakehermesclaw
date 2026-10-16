@@ -46,7 +46,26 @@
 - 桥的**开关在主页**「连接状态」卡片下方（`ui/bridge/MobileBridgeSwitchCard.kt`），拨动直接写设置并
   `MobileBridgeService.start/stop`、立即生效；设置页只留信息展示（端口 / 绑定模式 / 审批模式等仍需按保存生效）。
 - `approvalMode` / `allowedCapabilityGroups` / token 是每请求读取，改完即时生效。
-- 能力组改了"看起来没生效"，通常是 Hermes 侧缓存的 `/manifest` 过期，重读 manifest 即可，不要重启桥。
+- **能力组改动立即生效，不需要重启桥**：`manifestResponse()` / `executeResponse()` 各自现读
+  `allowedCapabilityGroups`，`BridgeRegistry.visible()` 当场过滤，没有任何快照缓存；只有 `port` / `bindMode`
+  需要"保存 → `restartIfRunning()`"。组检查还排在审批门**之前**：组没开就回 `unsupported_capability`，
+  连批准框都不会弹。"看着没生效"通常是调用方缓存了 `/manifest`，重读即可。
+- 组归属容易记错：`location.get` 属于 **`location`** 组（不是 `device`）；`screen.screenshot` /
+  `screen.screenshot.fetch` 属于 **`screen`** 组（不是 `accessibility`）。
+
+### 3.1 三条执行路径，准入各归谁管
+
+| 路径 | 谁发起 | 通道 | 准入由谁决定 |
+| --- | --- | --- | --- |
+| ① 节点原生 | OpenClaw 网关 | 网关 WebSocket（`node/ConnectionManager` + `node/InvokeDispatcher`） | **默认全通**：只按 Android 运行时权限声明与执行；`canvas` / `camera` / `screen` 另要求应用在前台 |
+| ② 桥接 HTTP | Hermes 侧脚本（任何持 token 的客户端） | 手机上的本地 HTTP（`/manifest`、`/execute`） | 桥接开关 + `allowedCapabilityGroups` + 审批模式 + 运行时权限 |
+| ③ 网关 → 桥接 | OpenClaw 网关 | 网关 `bridge.status / manifest / execute / grants / revoke` → 进程内 `MobileBridgeServer.dispatch()` | 同 ②（同一份允许组与审批），另需桥接开关为开 |
+
+- 主页「Android 设备功能」那四个开关（相机 / 位置 / 短信 / 屏幕）**管的是 ②③ 的允许组**：读写同一份
+  `allowedCapabilityGroups`，与「设置 → 移动桥接 → 允许的能力组」双向同步（同一 StateFlow）；**不管 ①**。
+- Hermes 不是网关，所以 **Hermes 只走 ②**：`backend/PrimaryBackendDispatcher.kt` 里 `HERMES_API_SERVER` /
+  `OPENCLAW_HTTP` → `sendViaAgentClient`（纯 HTTP，`HermesApiServerClient` 打 `/v1/chat/completions` 与
+  `/v1/runs`，没有 WebSocket）；只有 `OPENCLAW_GATEWAY` 才走节点会话。
 - 高风险能力里只剩 `apps.launch` 是已知受限项：它会被 Android 10+ 的后台启动限制静默拦截（BAL），
   只做「看起来成功」的处理。
 - 截图已实现，**两段式，不要退回成一段**：`screen.screenshot`（HIGH）只做抓屏 + 缩放 + JPEG，把字节塞进
@@ -69,7 +88,18 @@
   所以能力里用 `CameraCaptureService.awaitArmed()` 等最多 3 秒，别直接 `get()`（否则第一次调用会误报未武装）；
   ②`keepAliveMs = 0`（一次性批准）时服务必须**拍完自行 `stopSelf()`**，否则通知一直挂着。
 
-## 4. 构建 / 测试 / 装包
+## 4. TTS（提供商 / 缺引擎时的提示）
+
+- 提供商：本地（Android 系统 TTS，默认）/ ElevenLabs / OpenAI / **OpenAI 兼容**
+  （`speech/OpenAiCompatProvider.kt`：`POST {base}/v1/audio/speech`，地址 / 模型 / 音色可配、API key 可留空）/
+  VOICEVOX（仅 `full` flavor）。原来那个走自定义 `/tts` 契约的「Rig Qwen」provider 已被 OpenAI 兼容取代。
+- 诊断文案在 `speech/diagnostics/VoiceDiagnostics.kt`，一律走字符串资源，**别写死英文**（中文界面下曾漏出英文）。
+- 「本地 TTS + 系统里一个引擎都没有」→ 弹 `TtsEngineHintDialog`（`ui/settings/SettingsSaveSupport.kt`）：
+  正文里的 http(s) 链接由 `linkifyUrls()` 自动标注成可点链接（不要写死字符下标，各语言文案位置不同），
+  文案按语言指向对应语言的 sherpa-onnx 引擎包。主页诊断的「去设置修复」在没有引擎时也走同一个弹窗，
+  **不跳系统设置**。
+
+## 5. 构建 / 测试 / 装包
 
 ```bash
 ./gradlew assembleStandardDebug        # 产物在 app/build/outputs/apk/standard/debug/
@@ -86,23 +116,25 @@ adb -s <设备地址> install -r <apk>      # 装到真机（debug 包名 com.op
 - 单测里**不要**碰 `SettingsRepository`：它基于 `EncryptedSharedPreferences`（AndroidKeyStore），Robolectric 下
   不可用。把纯逻辑抽成可直接调用的函数再测（例：`LocaleAwareActivity.wrapWithLocale`）。
 
-## 5. 字符串资源
+## 6. 字符串资源
 
 - aapt2 不认 `\r` 转义（报 `Invalid unicode escape sequence`），换行只用 `\n`。
 - 字符串里的单引号必须写成 `\'`，裸写会构建失败。
 - 缺翻译的条目运行时自动回落英文。新增界面文案时同步 `values` / `values-zh-rCN` / `values-zh-rTW`。
 
-## 6. 排查"代码看着对但界面没反应"
+## 7. 排查"代码看着对但界面没反应"
 
 - `LocaleAwareActivity.langDiag(context, line)` 同时写 logcat 和 `files/langdiag.log`；
   读法：`adb shell run-as com.openclaw.assistant.debug cat files/langdiag.log`。
 - 部分 ROM（含本项目测试机）的 logcat 主缓冲区读出来是空的，`Log.i` 什么都留不下，别在那里浪费时间。
 - 核对界面可用 `adb shell uiautomator dump` 读节点树、按 bounds 点按，比猜坐标可靠。
 
-## 7. 不要做的事
+## 8. 不要做的事
 
 - **不要自造上游不存在的协议/格式**。曾经自造过 `agentvoice://setup/<base64url>`（"path 形式"）深链，
   单测只验证了自己写的解析器就当成可用，结果真机上两种形式都报"配对 QR 缺少必要信息"——上游只有 query 形式。
   外部报文格式先按上游已有形式做，并端到端验证整条链。
 - 不要把保存后的副作用只写在一个宿主里（见第 1 节）。
+- 不要把界面上"是否在运行/是否启用"的信号接到持久化的**设置值**上：桥接一律读 `serverRunning`、
+  能力开关一律读 `allowedCapabilityGroups`（见第 3 节）。
 - 不要在保存流程里调用 `AppCompatDelegate.setApplicationLocales()`（见第 2 节）。

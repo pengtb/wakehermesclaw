@@ -33,8 +33,6 @@ import android.provider.Settings
 class ConnectionManager(
   private val prefs: SecurePrefs,
   private val appContext: Context,
-  private val cameraEnabled: () -> Boolean,
-  private val locationMode: () -> LocationMode,
   private val voiceWakeMode: () -> VoiceWakeMode,
   private val smsAvailable: () -> Boolean,
   private val hasRecordAudioPermission: () -> Boolean,
@@ -116,14 +114,12 @@ class ConnectionManager(
       OpenClawBridgeCommand.entries.forEach { add(it.rawValue) }
       add(OpenClawScreenCommand.Record.rawValue)
       OpenClawDeviceCommand.entries.forEach { add(it.rawValue) }
-      if (cameraEnabled()) {
-        add(OpenClawCameraCommand.List.rawValue)
-        add(OpenClawCameraCommand.Snap.rawValue)
-        add(OpenClawCameraCommand.Clip.rawValue)
-      }
-      if (locationMode() != LocationMode.Off) {
-        add(OpenClawLocationCommand.Get.rawValue)
-      }
+      // 节点原生命令默认全通：相机/位置只按 Android 运行时权限判定，不再看主页开关
+      // （主页那四个开关现在管的是桥接的「允许的能力组」）
+      add(OpenClawCameraCommand.List.rawValue)
+      add(OpenClawCameraCommand.Snap.rawValue)
+      add(OpenClawCameraCommand.Clip.rawValue)
+      add(OpenClawLocationCommand.Get.rawValue)
       if (smsAvailable()) {
         add(OpenClawSmsCommand.Send.rawValue)
       }
@@ -208,12 +204,14 @@ class ConnectionManager(
         add(OpenClawCapability.Motion.rawValue)
       }
 
-      if (cameraEnabled()) add(OpenClawCapability.Camera.rawValue)
+      if (hasPermission(Manifest.permission.CAMERA)) add(OpenClawCapability.Camera.rawValue)
       if (smsAvailable()) add(OpenClawCapability.Sms.rawValue)
       if (voiceWakeMode() != VoiceWakeMode.Off && hasRecordAudioPermission()) {
         add(OpenClawCapability.VoiceWake.rawValue)
       }
-      if (locationMode() != LocationMode.Off) {
+      if (hasPermission(Manifest.permission.ACCESS_FINE_LOCATION) ||
+        hasPermission(Manifest.permission.ACCESS_COARSE_LOCATION)
+      ) {
         add(OpenClawCapability.Location.rawValue)
       }
     }

@@ -741,6 +741,14 @@ fun MainScreen(
                 "Offline" -> stringResource(R.string.status_offline)
                 else -> nodeStatusText
             }
+            // 「连接」小标题：与下方「Android 设备功能」同一格式
+            Text(
+                text = stringResource(R.string.home_connection_section_title),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp)
+            )
+            Spacer(modifier = Modifier.height(8.dp))
             com.openclaw.assistant.ui.backend.PrimaryBackendCard(
                 openClawConnected = nodeConnected,
                 openClawStatusText = displayStatusText,
@@ -777,10 +785,17 @@ fun MainScreen(
             )
             Spacer(modifier = Modifier.height(8.dp))
             
-            val cameraEnabled by runtime.cameraEnabled.collectAsState()
-            val locationMode by runtime.locationMode.collectAsState()
+            // === 主页四个能力开关：现在直接管桥接的「允许的能力组」—— 与「设置 → 移动桥接 → 允许的能力组」
+            // 是同一份状态（同一个 StateFlow），两个界面双向同步。节点协议那条路（第 1 条）已默认全通，
+            // 不再看这几个开关（见 ConnectionManager / InvokeDispatcher）。
+            val bridgeCfg = remember { com.openclaw.assistant.bridge.MobileBridgeConfig.getInstance(context) }
+            val allowedGroups by bridgeCfg.allowedCapabilityGroups.collectAsState()
             val locationPrecise by runtime.locationPreciseEnabled.collectAsState()
-            
+
+            fun setBridgeGroup(group: String, on: Boolean) {
+                bridgeCfg.setAllowedCapabilityGroups(if (on) allowedGroups + group else allowedGroups - group)
+            }
+
             // === CAPABILITIES: all 4 in one row ===
             val hasTelephony = remember { runtime.sms.hasTelephonyFeature() }
 
@@ -789,19 +804,16 @@ fun MainScreen(
                 CapabilityCard(
                     icon = Icons.Default.PhotoCamera,
                     label = stringResource(R.string.capability_camera),
-                    isActive = cameraEnabled,
+                    isActive = "camera" in allowedGroups,
                     onClick = {
-                        if (!cameraEnabled) {
+                        if ("camera" in allowedGroups) {
+                            setBridgeGroup("camera", false)
+                        } else {
                             val granted = ContextCompat.checkSelfPermission(
                                 context, Manifest.permission.CAMERA
                             ) == PackageManager.PERMISSION_GRANTED
-                            if (granted) {
-                                runtime.setCameraEnabled(true)
-                            } else {
-                                onRequestPermissions(listOf(Manifest.permission.CAMERA))
-                            }
-                        } else {
-                            runtime.setCameraEnabled(false)
+                            if (granted) setBridgeGroup("camera", true)
+                            else onRequestPermissions(listOf(Manifest.permission.CAMERA))
                         }
                     },
                     modifier = Modifier.weight(1f)
@@ -809,35 +821,35 @@ fun MainScreen(
 
                 // Location Toggle (ON/OFF)
                 val locationStatusText = when {
-                    locationMode == LocationMode.Off -> stringResource(R.string.location_off)
+                    "location" !in allowedGroups -> stringResource(R.string.location_off)
                     locationPrecise -> stringResource(R.string.location_precise)
                     else -> stringResource(R.string.location_coarse)
                 }
                 CapabilityCard(
                     icon = Icons.Default.LocationOn,
                     label = stringResource(R.string.capability_location),
-                    isActive = locationMode != LocationMode.Off,
+                    isActive = "location" in allowedGroups,
                     statusText = locationStatusText,
                     onClick = {
-                        if (locationMode == LocationMode.Off) {
+                        if ("location" in allowedGroups) {
+                            setBridgeGroup("location", false)
+                        } else {
                             val coarseGranted = ContextCompat.checkSelfPermission(
                                 context, Manifest.permission.ACCESS_COARSE_LOCATION
                             ) == PackageManager.PERMISSION_GRANTED
                             val fineGranted = ContextCompat.checkSelfPermission(
                                 context, Manifest.permission.ACCESS_FINE_LOCATION
                             ) == PackageManager.PERMISSION_GRANTED
-                            
+
                             if (coarseGranted || fineGranted) {
-                                runtime.setLocationMode(LocationMode.WhileUsing)
                                 runtime.setLocationPreciseEnabled(fineGranted)
+                                setBridgeGroup("location", true)
                             } else {
                                 onRequestPermissions(listOf(
                                     Manifest.permission.ACCESS_COARSE_LOCATION,
                                     Manifest.permission.ACCESS_FINE_LOCATION
                                 ))
                             }
-                        } else {
-                            runtime.setLocationMode(LocationMode.Off)
                         }
                     },
                     onInfoClick = { showLocationInfo = true },
@@ -849,33 +861,32 @@ fun MainScreen(
                     CapabilityCard(
                         icon = Icons.Default.Sms,
                         label = stringResource(R.string.capability_sms),
-                        isActive = smsEnabled,
+                        isActive = "sms" in allowedGroups,
                         onClick = {
-                            if (smsEnabled) {
-                                runtime.setSmsEnabled(false)
+                            if ("sms" in allowedGroups) {
+                                setBridgeGroup("sms", false)
                             } else {
                                 val granted = ContextCompat.checkSelfPermission(
                                     context, Manifest.permission.SEND_SMS
                                 ) == PackageManager.PERMISSION_GRANTED || ContextCompat.checkSelfPermission(
                                     context, Manifest.permission.READ_SMS
                                 ) == PackageManager.PERMISSION_GRANTED
-                                if (granted) {
-                                    runtime.setSmsEnabled(true)
-                                } else {
-                                    onRequestPermissions(listOf(Manifest.permission.SEND_SMS, Manifest.permission.READ_SMS))
-                                }
+                                if (granted) setBridgeGroup("sms", true)
+                                else onRequestPermissions(listOf(Manifest.permission.SEND_SMS, Manifest.permission.READ_SMS))
                             }
                         },
                         modifier = Modifier.weight(1f)
                     )
                 }
 
-                // Screen Capture Toggle
+                // Screen Capture Toggle → 桥接 screen 组（屏幕截图能力）；
+                // 原来的屏幕共享/录制流程仍放在信息图标上，点卡片只切这一个组
                 CapabilityCard(
-                    icon = if (screenRecordActive) Icons.AutoMirrored.Filled.StopScreenShare else Icons.AutoMirrored.Filled.ScreenShare,
+                    icon = if ("screen" in allowedGroups) Icons.AutoMirrored.Filled.StopScreenShare else Icons.AutoMirrored.Filled.ScreenShare,
                     label = stringResource(R.string.capability_screen),
-                    isActive = screenRecordActive,
-                    onClick = { showScreenCaptureDialog = true },
+                    isActive = "screen" in allowedGroups,
+                    onClick = { setBridgeGroup("screen", "screen" !in allowedGroups) },
+                    onInfoClick = { showScreenCaptureDialog = true },
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -1226,6 +1237,8 @@ fun CapabilityCard(
 
 @Composable
 fun DiagnosticPanel(diagnostic: VoiceDiagnostic, onRefresh: () -> Unit) {
+    // 「Fix in Settings」在系统里没有 TTS 引擎时不该跳设置页，而是弹装引擎的提示
+    val showTtsEngineHint = remember { mutableStateOf(false) }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -1244,10 +1257,16 @@ fun DiagnosticPanel(diagnostic: VoiceDiagnostic, onRefresh: () -> Unit) {
             }
             if (diagnostic.suggestions.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(12.dp))
-                diagnostic.suggestions.forEach { SuggestionItem(it) }
+                diagnostic.suggestions.forEach { suggestion ->
+                    SuggestionItem(
+                        suggestion = suggestion,
+                        onMissingTtsEngine = { showTtsEngineHint.value = true }
+                    )
+                }
             }
         }
     }
+    com.openclaw.assistant.ui.settings.TtsEngineHintDialog(visible = showTtsEngineHint)
 }
 
 @Composable
@@ -1298,13 +1317,30 @@ fun DiagnosticItem(label: String, status: DiagnosticStatus, modifier: Modifier =
 }
 
 @Composable
-fun SuggestionItem(suggestion: com.openclaw.assistant.speech.diagnostics.DiagnosticSuggestion) {
+fun SuggestionItem(
+    suggestion: com.openclaw.assistant.speech.diagnostics.DiagnosticSuggestion,
+    onMissingTtsEngine: (() -> Unit)? = null,
+) {
     val context = LocalContext.current
     Surface(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), color = MaterialTheme.colorScheme.surface, shape = RoundedCornerShape(8.dp), tonalElevation = 1.dp) {
         Row(modifier = Modifier.padding(8.dp).semantics(mergeDescendants = true) {}, verticalAlignment = Alignment.CenterVertically) {
             Text(text = suggestion.message, modifier = Modifier.weight(1f), fontSize = 12.sp, lineHeight = 16.sp)
             if (suggestion.actionLabel != null && suggestion.intent != null) {
-                TextButton(onClick = { try { context.startActivity(suggestion.intent) } catch (e: Exception) { Toast.makeText(context, context.getString(R.string.state_error), Toast.LENGTH_SHORT).show() } }, contentPadding = PaddingValues(horizontal = 8.dp)) { Text(suggestion.actionLabel, fontSize = 12.sp) }
+                TextButton(onClick = {
+                    // 「Fix in Settings」这个动作是去系统 TTS 设置页；手机上没有任何 TTS 引擎时，
+                    // 那个页面打开也没用 —— 改成弹安装引擎的提示（和设置页保存时同一个弹窗）。
+                    val noTtsEngine = suggestion.isSystemSetting &&
+                        com.openclaw.assistant.speech.TTSEngineUtils.getAvailableEngines(context).isEmpty()
+                    if (noTtsEngine && onMissingTtsEngine != null) {
+                        onMissingTtsEngine()
+                    } else {
+                        try {
+                            context.startActivity(suggestion.intent)
+                        } catch (e: Exception) {
+                            Toast.makeText(context, context.getString(R.string.state_error), Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }, contentPadding = PaddingValues(horizontal = 8.dp)) { Text(suggestion.actionLabel, fontSize = 12.sp) }
             }
         }
     }

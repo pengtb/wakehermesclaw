@@ -38,11 +38,7 @@ class InvokeDispatcherTest {
   private val voiceWakeHandler = mockk<VoiceWakeHandler>()
   private val mobileBridgeHandler = mockk<MobileBridgeHandler>()
 
-  private fun createDispatcher(
-    isForeground: Boolean = true,
-    cameraEnabled: Boolean = true,
-    locationEnabled: Boolean = true
-  ) = InvokeDispatcher(
+  private fun createDispatcher(isForeground: Boolean = true) = InvokeDispatcher(
     canvas = canvas,
     cameraHandler = cameraHandler,
     locationHandler = locationHandler,
@@ -63,9 +59,7 @@ class InvokeDispatcherTest {
     appHandler = appHandler,
     voiceWakeHandler = voiceWakeHandler,
     mobileBridgeHandler = mobileBridgeHandler,
-    isForeground = { isForeground },
-    cameraEnabled = { cameraEnabled },
-    locationEnabled = { locationEnabled }
+    isForeground = { isForeground }
   )
 
   @Test
@@ -80,13 +74,27 @@ class InvokeDispatcherTest {
   }
 
   @Test
-  fun `camera list returns error when camera disabled`() = runTest {
-    val dispatcher = createDispatcher(cameraEnabled = false)
+  fun `camera commands are not gated by any switch anymore`() = runTest {
+    // 节点原生命令（路径①）默认全通：主页开关现在管桥接的允许组，不再拦这些命令。
+    // 只剩"必须前台"一条平台限制，见下一个用例。
+    val dispatcher = createDispatcher(isForeground = true)
+    coEvery { cameraHandler.handleList(null) } returns GatewaySession.InvokeResult.ok("{}")
 
     val result = dispatcher.handleInvoke(OpenClawCameraCommand.List.rawValue, null)
 
-    assertEquals(false, result.ok)
-    assertEquals("CAMERA_DISABLED", result.error?.code)
+    assertEquals(true, result.ok)
+  }
+
+  @Test
+  fun `bridge commands are allowed while the app is in background`() = runTest {
+    // canvas/camera/screen 要求前台，但 bridge.* 不在那条名单里（网关可后台调桥接能力）
+    val dispatcher = createDispatcher(isForeground = false)
+    val params = """{"requestId":"r1","capability":"device.info","arguments":{}}"""
+    coEvery { mobileBridgeHandler.handleExecute(params) } returns GatewaySession.InvokeResult.ok("""{"status":"completed"}""")
+
+    val result = dispatcher.handleInvoke(OpenClawBridgeCommand.Execute.rawValue, params)
+
+    assertEquals(true, result.ok)
   }
 
   @Test

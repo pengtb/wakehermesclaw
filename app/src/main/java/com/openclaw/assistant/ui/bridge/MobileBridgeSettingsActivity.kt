@@ -220,7 +220,7 @@ private fun MobileBridgeSettingsContent(
                 )
                 Spacer(Modifier.height(10.dp))
                 FlowChipRow {
-                    listOf("device", "apps", "accessibility", "clipboard.read", "clipboard.write", "media", "notifications", "sms", "contacts", "calendar", "camera").forEach { group ->
+                    listOf("device", "apps", "accessibility", "screen", "clipboard.read", "clipboard.write", "media", "notifications", "sms", "contacts", "calendar", "camera", "location").forEach { group ->
                         FilterChip(
                             selected = group in allowedGroups,
                             onClick = {

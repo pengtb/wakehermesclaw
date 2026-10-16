@@ -202,8 +202,6 @@ class NodeRuntime(context: Context) {
   private val connectionManager: ConnectionManager = ConnectionManager(
     prefs = prefs,
     appContext = appContext,
-    cameraEnabled = { cameraEnabled.value },
-    locationMode = { locationMode.value },
     voiceWakeMode = { voiceWakeMode.value },
     smsAvailable = { sms.canSendSms() },
     hasRecordAudioPermission = { hasRecordAudioPermission() },
@@ -233,8 +231,6 @@ class NodeRuntime(context: Context) {
     deviceHandler = deviceHandler,
     mobileBridgeHandler = mobileBridgeHandler,
     isForeground = { _isForeground.value },
-    cameraEnabled = { cameraEnabled.value },
-    locationEnabled = { locationMode.value != LocationMode.Off },
   )
 
   private lateinit var gatewayEventHandler: GatewayEventHandler

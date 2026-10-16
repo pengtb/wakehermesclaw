@@ -42,8 +42,6 @@ class InvokeDispatcher(
   private val deviceHandler: DeviceHandler,
   private val mobileBridgeHandler: MobileBridgeHandler,
   private val isForeground: () -> Boolean,
-  private val cameraEnabled: () -> Boolean,
-  private val locationEnabled: () -> Boolean,
 ) {
   suspend fun handleInvoke(command: String, paramsJson: String?): GatewaySession.InvokeResult {
     // Check foreground requirement for canvas/camera/screen commands
@@ -59,22 +57,6 @@ class InvokeDispatcher(
           message = "NODE_BACKGROUND_UNAVAILABLE: canvas/camera/screen commands require foreground",
         )
       }
-    }
-
-    // Check camera enabled
-    if (command.startsWith(OpenClawCameraCommand.NamespacePrefix) && !cameraEnabled()) {
-      return GatewaySession.InvokeResult.error(
-        code = "CAMERA_DISABLED",
-        message = "CAMERA_DISABLED: enable Camera in Settings",
-      )
-    }
-
-    // Check location enabled
-    if (command.startsWith(OpenClawLocationCommand.NamespacePrefix) && !locationEnabled()) {
-      return GatewaySession.InvokeResult.error(
-        code = "LOCATION_DISABLED",
-        message = "LOCATION_DISABLED: enable Location in Settings",
-      )
     }
 
     return when (command) {

@@ -145,7 +145,7 @@ Need the server first? Start with [OpenClaw](https://github.com/openclaw/opencla
 - 🎤 **Customizable Wake Word** - Choose from "OpenClaw", "Hey Assistant", "Jarvis", "Computer", or set your own custom phrase
 - 📴 **Offline Wake Word Detection** - Always-on local processing powered by [Vosk](https://alphacephei.com/vosk/), no internet required
 - 🗣️ **Speech Recognition** - Real-time speech-to-text with partial results display and configurable silence timeout
-- 🔊 **Text-to-Speech** - Automatic voice output with adjustable speech speed, multi-engine support, and smart text chunking for long responses. Supports **Android native**, **ElevenLabs**, **OpenAI**, and **VOICEVOX** (full build) TTS providers
+- 🔊 **Text-to-Speech** - Automatic voice output with adjustable speech speed, multi-engine support, and smart text chunking for long responses. Supports **Android native**, **ElevenLabs**, **OpenAI**, **OpenAI-compatible** (any self-hosted `/v1/audio/speech` server), and **VOICEVOX** (full build) TTS providers
 - 🔄 **Continuous Conversation Mode** - Auto-resumes listening after AI response for natural back-and-forth dialogue
 - 🏠 **System Assistant Integration** - Long press Home button to activate via Android VoiceInteractionService
 - 🔃 **Wake Word Sync** - Download wake words configured on the gateway server to your device
@@ -305,7 +305,7 @@ ngrok http 18789
 | **Language** | Kotlin |
 | **UI** | Jetpack Compose + Material 3 |
 | **Speech Recognition** | Android SpeechRecognizer |
-| **Text-to-Speech** | Android TTS / ElevenLabs / OpenAI / VOICEVOX (full build) |
+| **Text-to-Speech** | Android TTS / ElevenLabs / OpenAI / OpenAI-compatible / VOICEVOX (full build) |
 | **Wake Word** | [Vosk](https://alphacephei.com/vosk/) 0.3.75 (offline) |
 | **System Integration** | VoiceInteractionService |
 | **Networking** | OkHttp 4.12 + WebSocket |
@@ -414,7 +414,7 @@ App 侧另有一条不依赖相机的路：首启向导 "One QR sets up WakeHerm
 | `ui/LocaleAwareActivity.kt`（新增）+ 13 个 Activity | 界面语言统一处理：所有 Activity 都继承它，在 `attachBaseContext` 应用「设置 → 显示语言」（空 = 跟随系统）。此前只有 MainActivity / SettingsActivity 手写了这段，其余 11 个界面恒定跟系统语言 |
 | `SettingsActivity.kt`（保存流程） | 语言改变时不再静默重启，改为弹确认框，点「立即重启」才清栈重启到主界面；点「稍后」下次新建界面时生效 |
 | `SettingsActivity.kt`（语言列表） | 语言条目只用各语言自己的写法（简体中文 / 繁體中文 / English…），不写国家名；去掉与 `de-DE` 重复的 `de-AT`；只保留翻译完整的语言（见第 6 节） |
-| `res/values-zh-rCN`, `res/values-zh-rTW` | 补齐 122 条缺失文案（含配对卡片、扫码提示、Mobile Bridge 页、Terminal 字段、Rig Qwen TTS），现 946/946 全覆盖 |
+| `res/values-zh-rCN`, `res/values-zh-rTW` | 补齐 122 条缺失文案（含配对卡片、扫码提示、Mobile Bridge 页、Terminal 字段、OpenAI 兼容 TTS、诊断提示） |
 | `res/values/strings.xml`, `res/values-ja` | 默认（英文）文件里残留的 62 条日文改成英文（上游把英文文件当日文草稿写）；原本那条日文补进 `values-ja` |
 | `app/src/test/.../LocaleAwareActivityTest.kt`（新增） | 语言映射单测：空 = 跟随系统、指定语言真的换翻译、无翻译回落英文；以及「立即重启」发出的 Intent 目标与 flag |
 | `MainActivity.kt`（设置标签页 `MainNavHost`） | 底部导航的「设置」标签页同样支持"语言改动提示"与"保存时按新配置重启桥接"，与 `SettingsActivity` 共用同一份实现 |
@@ -617,7 +617,7 @@ Hermes 侧封装：`integrations/hermes-mobile-bridge/capture_photo.py`（两段
 - 🎤 **カスタマイズ可能なウェイクワード** - 「OpenClaw」「Hey Assistant」「Jarvis」「Computer」から選択、または自由にカスタムフレーズを入力
 - 📴 **オフライン対応のウェイクワード検知** - [Vosk](https://alphacephei.com/vosk/)によるローカル処理で常時待ち受け、インターネット不要
 - 🗣️ **音声認識** - リアルタイムの音声テキスト変換、部分認識結果の表示、サイレンスタイムアウト設定
-- 🔊 **音声読み上げ (TTS)** - 読み上げ速度調整、複数エンジン対応、長文の自動分割読み上げ。**Android標準**・**ElevenLabs**・**OpenAI**・**VOICEVOX**（fullビルド）に対応
+- 🔊 **音声読み上げ (TTS)** - 読み上げ速度調整、複数エンジン対応、長文の自動分割読み上げ。**Android標準**・**ElevenLabs**・**OpenAI**・**OpenAI互換**・**VOICEVOX**（fullビルド）に対応
 - 🔄 **連続会話モード** - AI応答後に自動で聞き取り再開、自然な対話フロー
 - 🏠 **システムアシスタント連携** - ホームボタン長押しでAndroid VoiceInteractionService経由で起動
 - 🔃 **ウェイクワード同期** - ゲートウェイサーバーで設定されたウェイクワードをデバイスにダウンロード
@@ -777,7 +777,7 @@ Chat Completions APIが有効であることを `moltbot.json` で確認：
 | **言語** | Kotlin |
 | **UI** | Jetpack Compose + Material 3 |
 | **音声認識** | Android SpeechRecognizer |
-| **音声合成** | Android TTS / ElevenLabs / OpenAI / VOICEVOX (fullビルド) |
+| **音声合成** | Android TTS / ElevenLabs / OpenAI / OpenAI互換 / VOICEVOX (fullビルド) |
 | **ウェイクワード** | [Vosk](https://alphacephei.com/vosk/) 0.3.75 (オフライン対応) |
 | **システム連携** | VoiceInteractionService |
 | **通信** | OkHttp 4.12 + WebSocket |
