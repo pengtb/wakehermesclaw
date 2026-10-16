@@ -15,6 +15,10 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    <!-- Camera foreground service (Android 14+ requires the per-type permission to declare
+         foregroundServiceType="camera"); the service is what lets us open the camera while
+         the app is in the background. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <!-- Battery optimization exclusion request -->
@@ -241,6 +245,15 @@
             android:name="com.openclaw.assistant.bridge.MobileBridgeService"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
+
+        <!-- Camera capture foreground service. Android allows opening the camera from the
+             background only through a foreground service that declares the `camera` type,
+             and such a service must be *started* while the app has a visible activity —
+             the bridge approval screen is that moment. -->
+        <service
+            android:name="com.openclaw.assistant.bridge.camera.CameraCaptureService"
+            android:exported="false"
+            android:foregroundServiceType="camera" />
 
         <!-- WakeHermesClaw Accessibility Bridge — off by default. User must enable
              from Settings → Accessibility. -->

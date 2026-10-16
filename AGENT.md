@@ -51,6 +51,15 @@
   服务配置必须保留 `android:canTakeScreenshot="true"`），失败时回平台 `errorCode`
   （`3` = 调用太快，平台有频率限制；`6` = 目标页面 `FLAG_SECURE`）—— 别把它吞成通用失败。
   Hermes 侧封装在 `integrations/hermes-mobile-bridge/capture_screen.py`。
+- 拍照走 `bridge/camera/CameraCaptureService.kt`（manifest 里 `foregroundServiceType="camera"` +
+  `FOREGROUND_SERVICE_CAMERA` 权限）。**别在后台启动它**：Android 12+ 明确禁止「需要 while-in-use 权限的前台服务」
+  在应用处于后台时启动，即使别的豁免满足也不行；唯一合法时机是应用有可见界面，所以由批准界面在用户点批准时
+  `arm()` 它（`BridgeApprovalActivity`）。授权窗口内保持服务存活（"直到撤销" 上限 12 小时），这样后续拍照不必重新启动。
+  服务内部自带 `LifecycleRegistry` 的 `LifecycleOwner`（CameraX 需要），只在拍摄瞬间推到 RESUMED 打开相机，
+  拍完退回 CREATED 释放 —— 存活的是服务，不是相机。
+  拍照复用 `node/CameraCaptureManager.snap()`（facing/quality/maxWidth + EXIF 旋转 + 限幅压缩），
+  结果同样进 `ScreenCaptureStore`，第二段是 `camera.capture_photo.fetch`。错误码：`CAMERA_SERVICE_NOT_ARMED`、
+  `CAMERA_TIMEOUT`、`CAMERA_CAPTURE_FAILED`。Hermes 侧封装 `integrations/hermes-mobile-bridge/capture_photo.py`。
 
 ## 4. 构建 / 测试 / 装包
 

@@ -443,7 +443,7 @@ App 侧另有一条不依赖相机的路：首启向导 "One QR sets up WakeHerm
 | screen.home | accessibility/LOW | completed：回到桌面 | 正常 |
 | screen.screenshot / .fetch | accessibility/HIGH / MEDIUM | 本次仅构建，**尚未真机实测** | **已实现**：两段式（第一段回元数据 + 短时 id，第二段回 base64） |
 | apps.launch | apps/MEDIUM | 回 `{"launched":true}`，但 1/3/6 秒后前台仍是桌面（两个 App 均如此） | **有 bug**：后台 `startActivity` 被 Android 10+ 静默拦截 |
-| camera.capture_photo | camera/HIGH | `{"status":"failed","error":"unsupported_capability"}` | **占位**：`isAvailable=false`，不在 /manifest |
+| camera.capture_photo / .fetch | camera/HIGH / MEDIUM | 本次仅构建，**尚未真机实测** | **已实现**：相机前台服务 + 两段式（元数据 + id，再 fetch base64） |
 
 以下能力代码是真实现，但本次**未实测**（都会产生真实副作用）：`screen.tap` / `swipe` / `long_press` / `drag`
 （会真的点在手机上）、`screen.back`、`media.play_pause` / `next` / `previous`（会切歌）、`notification.dismiss`
@@ -451,7 +451,8 @@ App 侧另有一条不依赖相机的路：首启向导 "One QR sets up WakeHerm
 运行时不可见（`isAvailable=false`，需 `WRITE_SETTINGS`）。
 
 结论：设备/系统读取、剪贴板读写、通知读取、无障碍读屏与 Home/Back 这类全局动作都稳定可用；
-图像里相机那条在上游仍是占位（`camera.capture_photo`），截图已按下面这一节的做法补上；`apps.launch` 静默失败。
+图像两条路都已补上 —— 截图见 3.1（两段式，已真机验证）、拍照见 3.2（相机前台服务 + 两段式，尚未真机验证）；
+`apps.launch` 静默失败。
 验证能力是否真生效**必须**用 `screen.window.describe` 看前台包名，不能只看返回值。
 
 #### 3.1 截图：两段式（本次实现）
@@ -483,6 +484,36 @@ Hermes 侧封装：`integrations/hermes-mobile-bridge/capture_screen.py`（两�
 失败时 `screen.screenshot` 会带上平台的 `errorCode`：`2`=没有无障碍权限、`3`=调用太快（平台有频率限制）、
 `4`=display 无效、`5`=窗口无效、`6`=目标页面设置了 `FLAG_SECURE`。
 
+#### 3.2 拍照：相机前台服务 + 两段式（本次实现）
+
+上游的 `camera.capture_photo` 是占位（`isAvailable=false`）。这里的难点不在拍照本身（CameraX 与
+`node/CameraCaptureManager.kt` 里那套「拍→EXIF 旋转→缩放→压缩」都已有），而在**权限模型**：
+
+- Android 11 起，后台打开相机必须由一个声明了 `camera` 类型的前台服务来做；
+- Android 12 起，这种前台服务**不能在应用处于后台时启动** —— 官方文档明确写「即使符合后台启动的其它豁免也不行」，
+  必须在**应用有可见界面时**调用 `startForegroundService()`。
+
+所以设计成「批准即武装」：`camera.capture_photo` 是 HIGH 风险，本来就要用户批准；用户在批准界面点下批准的那一刻，
+应用正好有可见界面 —— 就在那里启动 `CameraCaptureService`（`bridge/camera/CameraCaptureService.kt`，
+manifest 里 `foregroundServiceType="camera"` + `FOREGROUND_SERVICE_CAMERA` 权限）。之后 HTTP 请求在手机开着别的
+应用时也能被服务接住。选「批准 10 分钟 / 1 小时 / 直到撤销」时，服务在整个授权窗口内存活（"直到撤销"按 12 小时上限），
+这样后续拍照不需要重新后台启动服务；选「批准一次」则拍完即停。
+
+存活的是**服务**而不是相机：只有拍摄瞬间把服务内部的 `LifecycleOwner` 推到 RESUMED 打开相机，拍完立刻退回 CREATED
+释放相机（指示灯熄灭），两次拍照之间相机不被占用。
+
+接口与截图对齐，同样两段式：
+
+1. `camera.capture_photo {facing?="back", long_edge?=1568, quality?=85}`（HIGH）→ 元数据 + `id`：
+   `{ok, id, mime, width, height, bytes, facing, longEdge, quality, ttlMs, expiresAt, fetchWith}`
+2. `camera.capture_photo.fetch {id}`（MEDIUM）→ `{base64, mime, width, height, bytes}`
+
+同样是仅内存缓冲（和截图共用 `ScreenCaptureStore`：TTL 5 分钟、最多 4 条、≤48MB、不落盘——拍照只在 CameraX 写入
+后立即删除的临时文件里短暂落过一次盘）。出错时返回结构化原因：`CAMERA_SERVICE_NOT_ARMED`（还没武装，需要先在
+App 里批准一次）、`CAMERA_TIMEOUT`（25 秒没出帧）、`CAMERA_CAPTURE_FAILED`（含平台原因，例如相机被其它应用占用）。
+
+Hermes 侧封装：`integrations/hermes-mobile-bridge/capture_photo.py`（两段一次做完、解码写文件、打印 JSON）。
+
 ### 4. 构建
 
 - JDK 17 + Android SDK（`compileSdk 35`、`build-tools 35.0.0`）。
@@ -495,8 +526,8 @@ Hermes 侧封装：`integrations/hermes-mobile-bridge/capture_screen.py`（两�
 ### 5. 已知问题（上游同样存在）
 
 - `apps.launch` 后台启动 Activity 被系统拦截，返回值仍是 `launched: true`。
-- `camera.capture_photo` 仍是占位实现（`isAvailable=false`），经桥拿不到相机图；截图的占位已被上面的两段式取代
-  （`screen.screenshot` + `screen.screenshot.fetch`）。
+- 相机的两条限制来自系统，不是我们代码的问题，但会体现在调用结果上：**没先在 App 里批准过，`camera.capture_photo`
+  会回 `CAMERA_SERVICE_NOT_ARMED`**；相机被其它应用占用时拍照失败（如实报错，不伪装成功）。
 - 自编译包（不同包名）拿不到 Google Play 的 ML Kit 扫码模块，内置扫码可能不可用 —— 用深链二维码 + 系统相机即可绕过。
 
 ### 6. 界面语言（已实现 / 待补齐）
@@ -538,8 +569,8 @@ Hermes 侧封装：`integrations/hermes-mobile-bridge/capture_screen.py`（两�
 | de / es / fr / hi / ru 文案 | 各缺 126 条 | 补齐后可加回语言列表 | 翻译（工作量大，或改上游） |
 | 语言切换的即时刷新 | 已实现「保存 → 询问 → 立即重启」；**真机已验证**（Android 16，2026-10-15）：弹窗出现、点「立即重启」后整体换语言 | 无 | — |
 | 设置页保存后的收尾 | 统一到 `ui/settings/SettingsSaveSupport`；**真机已验证**（Android 16，2026-10-15）：改端口后保存，状态卡「目前在」更新为新端口，即"保存时按新配置重启桥接"生效 | 无 | — |
-| `camera.capture_photo` | 占位（`isAvailable=false`，不在 /manifest） | 选定方案：CameraX 拍照并回传（或直接删掉该能力） | 需要设计决策 |
-| `screen.screenshot` | 占位：bitmap 被丢弃，取不回图像 | 无障碍截图 bitmap 回传 | 需评估风险等级 |
+| `camera.capture_photo` | 已实现：相机前台服务（`camera` 类型）+ 两段式（元数据 + id / fetch base64）；`isAvailable` 需 `CAMERA` 权限 + API 29+ | 真机验证（首次需在批准界面点一次；观察是否出现 `CAMERA_SERVICE_NOT_ARMED` / 后台启动被拒） | — |
+- `screen.screenshot` | 已实现两段式（3.1）；**真机已验证**（Android 16，2026-10-15）：706×1568、约 78KB | 无 | — |
 | `apps.launch` | 回 `launched:true` 但被 Android 10+ 后台启动限制静默拦截 | 改用前台服务/`PendingIntent` 或明确报错 | 需要设计决策 |
 | `brightness.set` | 运行时不可见（`isAvailable=false`） | 引导授予 `WRITE_SETTINGS` 后再暴露 | 权限 |
 | 内置二维码扫描 | 自编译包拿不到 Google Play 的 ML Kit 模块 | 捆绑 zxing + CameraX，或维持「系统相机扫深链」 | 改动较大 |

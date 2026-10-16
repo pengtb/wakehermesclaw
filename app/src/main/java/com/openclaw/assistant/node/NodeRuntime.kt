@@ -1202,7 +1202,11 @@ class NodeRuntime(context: Context) {
     _cameraFlashToken.value = SystemClock.elapsedRealtimeNanos()
   }
 
-  private fun showCameraHud(message: String, kind: CameraHudKind, autoHideMs: Long? = null) {
+  /**
+   * Show the camera HUD. Public because the Mobile Bridge's camera capability drives the same
+   * on-screen hint as the node camera path (the user should always see when the camera is used).
+   */
+  fun showCameraHud(message: String, kind: CameraHudKind, autoHideMs: Long? = null) {
     val token = cameraHudSeq.incrementAndGet()
     _cameraHud.value = CameraHudState(token = token, kind = kind, message = message)
 

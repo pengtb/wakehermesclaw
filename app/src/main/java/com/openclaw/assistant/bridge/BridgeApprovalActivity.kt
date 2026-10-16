@@ -27,6 +27,7 @@ class BridgeApprovalActivity : LocaleAwareActivity() {
         val pending = BridgeApprovalRegistry.snapshot(requestId)
         val capability = pending?.capability ?: "(unknown)"
         val destructive = com.openclaw.assistant.bridge.grants.DestructiveVerbs.isDestructive(capability)
+        val activity = this
         setContent {
             MaterialTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
@@ -37,6 +38,17 @@ class BridgeApprovalActivity : LocaleAwareActivity() {
                         onApprove = { ttlMs ->
                             if (ttlMs > 0L && !destructive) {
                                 com.openclaw.assistant.bridge.grants.BridgeGrants.grant(capability, ttlMs)
+                            }
+                            // The platform only lets a camera foreground service start while the app
+                            // has a visible activity — this tap is that moment, so arm it here rather
+                            // than from the (backgrounded) bridge service.
+                            if (capability == com.openclaw.assistant.bridge.camera.CameraCaptureService.CAPABILITY_NAME) {
+                                val armed = com.openclaw.assistant.bridge.camera.CameraCaptureService
+                                    .arm(activity, ttlMs)
+                                android.util.Log.i(
+                                    "BridgeApproval",
+                                    "camera service arm (keepAlive=${ttlMs}ms): ${if (armed) "ok" else "refused"}",
+                                )
                             }
                             BridgeApprovalRegistry.respond(requestId, true); finish()
                         },
