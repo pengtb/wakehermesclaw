@@ -443,7 +443,7 @@ App 侧另有一条不依赖相机的路：首启向导 "One QR sets up WakeHerm
 | screen.home | accessibility/LOW | completed：回到桌面 | 正常 |
 | screen.screenshot / .fetch | accessibility/HIGH / MEDIUM | 本次仅构建，**尚未真机实测** | **已实现**：两段式（第一段回元数据 + 短时 id，第二段回 base64） |
 | apps.launch | apps/MEDIUM | 回 `{"launched":true}`，但 1/3/6 秒后前台仍是桌面（两个 App 均如此） | **有 bug**：后台 `startActivity` 被 Android 10+ 静默拦截 |
-| camera.capture_photo / .fetch | camera/HIGH / MEDIUM | 本次仅构建，**尚未真机实测** | **已实现**：相机前台服务 + 两段式（元数据 + id，再 fetch base64） |
+| camera.capture_photo / .fetch | camera/HIGH / MEDIUM | **真机已验证**（Android 16，2026-10-16）：后摄 1568×2090、约 220KB；批准后 6.1s 出图、取图 5.6s；首次调用（服务未武装）正确回 `CAMERA_SERVICE_NOT_ARMED` | **已实现**：相机前台服务 + 两段式 |
 
 以下能力代码是真实现，但本次**未实测**（都会产生真实副作用）：`screen.tap` / `swipe` / `long_press` / `drag`
 （会真的点在手机上）、`screen.back`、`media.play_pause` / `next` / `previous`（会切歌）、`notification.dismiss`
@@ -569,7 +569,7 @@ Hermes 侧封装：`integrations/hermes-mobile-bridge/capture_photo.py`（两段
 | de / es / fr / hi / ru 文案 | 各缺 126 条 | 补齐后可加回语言列表 | 翻译（工作量大，或改上游） |
 | 语言切换的即时刷新 | 已实现「保存 → 询问 → 立即重启」；**真机已验证**（Android 16，2026-10-15）：弹窗出现、点「立即重启」后整体换语言 | 无 | — |
 | 设置页保存后的收尾 | 统一到 `ui/settings/SettingsSaveSupport`；**真机已验证**（Android 16，2026-10-15）：改端口后保存，状态卡「目前在」更新为新端口，即"保存时按新配置重启桥接"生效 | 无 | — |
-| `camera.capture_photo` | 已实现：相机前台服务（`camera` 类型）+ 两段式（元数据 + id / fetch base64）；`isAvailable` 需 `CAMERA` 权限 + API 29+ | 真机验证（首次需在批准界面点一次；观察是否出现 `CAMERA_SERVICE_NOT_ARMED` / 后台启动被拒） | — |
+| `camera.capture_photo` | 已实现：相机前台服务（`camera` 类型）+ 两段式；**真机已验证**（Android 16，2026-10-16）：批准即武装、拍完自动停服务、未武装时回 `CAMERA_SERVICE_NOT_ARMED` | 无 | — |
 - `screen.screenshot` | 已实现两段式（3.1）；**真机已验证**（Android 16，2026-10-15）：706×1568、约 78KB | 无 | — |
 | `apps.launch` | 回 `launched:true` 但被 Android 10+ 后台启动限制静默拦截 | 改用前台服务/`PendingIntent` 或明确报错 | 需要设计决策 |
 | `brightness.set` | 运行时不可见（`isAvailable=false`） | 引导授予 `WRITE_SETTINGS` 后再暴露 | 权限 |

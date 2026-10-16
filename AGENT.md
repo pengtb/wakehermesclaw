@@ -60,6 +60,9 @@
   拍照复用 `node/CameraCaptureManager.snap()`（facing/quality/maxWidth + EXIF 旋转 + 限幅压缩），
   结果同样进 `ScreenCaptureStore`，第二段是 `camera.capture_photo.fetch`。错误码：`CAMERA_SERVICE_NOT_ARMED`、
   `CAMERA_TIMEOUT`、`CAMERA_CAPTURE_FAILED`。Hermes 侧封装 `integrations/hermes-mobile-bridge/capture_photo.py`。
+- 两个已踩过的坑（都已在真机验证过修复）：①`arm()` 是异步的，批准后能力可能比服务 `onCreate` 先跑 ——
+  所以能力里用 `CameraCaptureService.awaitArmed()` 等最多 3 秒，别直接 `get()`（否则第一次调用会误报未武装）；
+  ②`keepAliveMs = 0`（一次性批准）时服务必须**拍完自行 `stopSelf()`**，否则通知一直挂着。
 
 ## 4. 构建 / 测试 / 装包
 
@@ -68,6 +71,10 @@
 ./gradlew testStandardDebugUnitTest    # Robolectric 单测
 adb -s <设备地址> install -r <apk>      # 装到真机（debug 包名 com.openclaw.assistant.debug）
 ```
+
+- **装包优先用 LAN 地址**（如 `10.11.34.138:<端口>`）。走 tailnet 地址（`100.64.x.x:<端口>`）时
+  `adb install`（streamed install）会以**空错误信息**失败（`failed to install <apk>:` 后面什么都没有），
+  换 LAN 立刻成功；`--no-streaming` 走 tailnet 也会 `device offline`。同一个端口在两种地址上都可连。
 
 - 需要 JDK 17 与 Android SDK；`app/google-services.json` 可从 `.example` 复制并把 `FIREBASE_ENABLED=false`。
 - Robolectric 需要 android-all 制品，国内可用 init 脚本把 `robolectric.dependency.repo.url` 指向镜像。

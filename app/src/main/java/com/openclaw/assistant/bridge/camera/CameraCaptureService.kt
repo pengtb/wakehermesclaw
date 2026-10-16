@@ -53,6 +53,9 @@ class CameraCaptureService : Service() {
     private var manager: CameraCaptureManager? = null
     private var stopRunnable: Runnable? = null
 
+    /** 0 = one shot (stop right after the capture); > 0 = the user's grant window. */
+    private var keepAliveMs = 0L
+
     override fun onCreate() {
         super.onCreate()
         instance = this
@@ -65,6 +68,7 @@ class CameraCaptureService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         startForegroundCompat()
         val keepAliveMs = intent?.getLongExtra(EXTRA_KEEP_ALIVE_MS, 0L) ?: 0L
+        this.keepAliveMs = keepAliveMs
         stopRunnable?.let { mainHandler.removeCallbacks(it) }
         if (keepAliveMs > 0L) {
             val capped = keepAliveMs.coerceAtMost(MAX_KEEP_ALIVE_MS)
@@ -103,6 +107,9 @@ class CameraCaptureService : Service() {
                 parsePayload(payload.payloadJson, facing)
             } finally {
                 owner.registry.currentState = Lifecycle.State.CREATED
+                // "Approve once" (keepAlive = 0): the service has served its purpose, so drop the
+                // notification. Timed grants keep it alive for the whole window instead.
+                if (keepAliveMs <= 0L) mainHandler.postDelayed({ stopSelf() }, 1_000)
             }
         }
     }
@@ -161,6 +168,20 @@ class CameraCaptureService : Service() {
 
         fun get(): CameraCaptureService? = instance
         fun isRunning(): Boolean = instance != null
+
+        /**
+         * The approval screen arms us asynchronously, so a capability that runs right after the
+         * approval tap can beat onCreate. Wait briefly for the instance instead of reporting
+         * "not armed" for a service that is in fact on its way up.
+         */
+        suspend fun awaitArmed(timeoutMs: Long = 3_000L): CameraCaptureService? {
+            val deadline = System.currentTimeMillis() + timeoutMs
+            while (System.currentTimeMillis() < deadline) {
+                instance?.let { return it }
+                kotlinx.coroutines.delay(50L)
+            }
+            return instance
+        }
 
         /**
          * Arm the service. Must be called from a visible activity (the approval screen) or from an

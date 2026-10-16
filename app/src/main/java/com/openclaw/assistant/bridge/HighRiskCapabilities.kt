@@ -251,7 +251,7 @@ object CameraCapturePhotoCapability : BridgeCapability {
         val longEdge = argInt(arguments, "long_edge", DEFAULT_LONG_EDGE, 320, 4096)
         val quality = argInt(arguments, "quality", DEFAULT_QUALITY, 10, 100)
 
-        val service = com.openclaw.assistant.bridge.camera.CameraCaptureService.get()
+        val service = com.openclaw.assistant.bridge.camera.CameraCaptureService.awaitArmed()
             ?: return buildJsonObject {
                 put("ok", false)
                 put("code", "CAMERA_SERVICE_NOT_ARMED")
