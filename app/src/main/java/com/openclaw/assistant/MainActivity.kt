@@ -42,6 +42,8 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import androidx.compose.animation.core.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -71,6 +73,7 @@ import com.openclaw.assistant.data.SettingsRepository
 import com.openclaw.assistant.service.HotwordService
 import com.openclaw.assistant.service.NodeForegroundService
 import com.openclaw.assistant.service.OpenClawAssistantService
+import com.openclaw.assistant.service.OpenClawSession
 import com.openclaw.assistant.ui.GatewayTrustDialog
 import com.openclaw.assistant.speech.TTSUtils
 import com.openclaw.assistant.speech.diagnostics.DiagnosticStatus
@@ -87,7 +90,10 @@ import com.openclaw.assistant.ui.SetupGuideScreen
 
 data class PermissionStatusInfo(
     val permissionName: String,
-    val isGranted: Boolean
+    val isGranted: Boolean,
+    /** 可选：自定义的状态文字（权限之外的东西，比如"数字助理"用"已设置/未设置"更贴切） */
+    val grantedText: String? = null,
+    val deniedText: String? = null
 )
 
 data class PermissionInfo(
@@ -190,6 +196,20 @@ class MainActivity : LocaleAwareActivity(), TextToSpeech.OnInitListener {
         super.onCreate(savedInstanceState)
         handleIntent(intent)
         settings = SettingsRepository.getInstance(this)
+
+        // 装包/强停后热词服务不会自己回来（只有开机广播和手动拨开关会拉），打开 App 时补一次
+        try {
+            val canRecord = androidx.core.content.ContextCompat.checkSelfPermission(
+                this, android.Manifest.permission.RECORD_AUDIO
+            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+            if (settings.hotwordEnabled && canRecord &&
+                !com.openclaw.assistant.service.HotwordService.running.value
+            ) {
+                com.openclaw.assistant.service.HotwordService.start(this)
+            }
+        } catch (e: Throwable) {
+            android.util.Log.w("MainActivity", "重启唤醒词服务失败: ${e.message}")
+        }
         
         screenCaptureRequester = ScreenCaptureRequester(this)
         permissionRequester = PermissionRequester(this)
@@ -307,6 +327,15 @@ class MainActivity : LocaleAwareActivity(), TextToSpeech.OnInitListener {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             list.add(PermissionStatusInfo(getString(R.string.permission_notifications), ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED))
         }
+        // 数字助理：不是权限，但没设的话唤醒词响一声就没了，所以和权限一起列出来
+        list.add(
+            PermissionStatusInfo(
+                permissionName = getString(R.string.permission_default_assistant),
+                isGranted = com.openclaw.assistant.speech.AssistantRoleStatus.isDefaultAssistant(this),
+                grantedText = getString(R.string.permission_status_set),
+                deniedText = getString(R.string.permission_status_not_set)
+            )
+        )
         allPermissionsStatus = list
     }
 
@@ -472,6 +501,8 @@ fun MainNavHost(
         )
     ) { mutableStateOf<AppTab>(AppTab.Home) }
     var showSettingsCredits by rememberSaveable { mutableStateOf(false) }
+    // 主页诊断点「更换识别方式」时，让设置页直接落到语音模式（值用 SettingsCategory 的名字）
+    var settingsCategoryRequest by remember { mutableStateOf<String?>(null) }
     // 语言改了 → 询问是否立即重启（设置界面在 MainNavHost 里，宿主是 MainActivity 这个 Activity）
     val showLanguageRestart = remember { mutableStateOf(false) }
 
@@ -519,7 +550,11 @@ fun MainNavHost(
                     onOpenAssistantSettings = onOpenAssistantSettings,
                     onRefreshDiagnostics = onRefreshDiagnostics,
                     onRequestPermissions = onRequestPermissions,
-                    onOpenAppSettings    = onOpenAppSettings
+                    onOpenAppSettings    = onOpenAppSettings,
+                    onOpenVoiceSettings  = {
+                        settingsCategoryRequest = "Voice"
+                        selectedTab = AppTab.Settings
+                    }
                 )
                 AppTab.Chat -> {
                     val sessions        by sessionListViewModel.allSessions.collectAsState()
@@ -585,18 +620,20 @@ fun MainNavHost(
                         val context = LocalContext.current
                         SettingsScreen(
                             settings  = settings,
-                            onSave    = { languageChanged ->
+                            onSave    = { languageChanged, bridgeSettingsTouched ->
                                 // 收尾统一走 SettingsSaveSupport：语言有变化 → 弹「是否立即重启」；
-                                // 桥在跑 → 用新配置重启一次 + Toast（和 SettingsActivity 共用同一份逻辑）
+                                // 仅"移动桥接"分类里的保存才重启桥 + Toast（和 SettingsActivity 共用同一份逻辑）
                                 val host = context as? LocaleAwareActivity
                                 val changed = host?.let {
                                     com.openclaw.assistant.ui.settings.SettingsSaveSupport
-                                        .afterSave(it, languageChanged)
+                                        .afterSave(it, languageChanged, bridgeSettingsTouched)
                                 } ?: languageChanged
                                 if (changed) showLanguageRestart.value = true
                             },
                             onBack    = { selectedTab = AppTab.Home },
-                            onCredits = { showSettingsCredits = true }
+                            onCredits = { showSettingsCredits = true },
+                            requestedCategory = settingsCategoryRequest,
+                            onRequestedCategoryHandled = { settingsCategoryRequest = null }
                         )
                     }
                 }
@@ -619,14 +656,18 @@ fun MainScreen(
     onOpenAssistantSettings: () -> Unit,
     onRefreshDiagnostics: () -> Unit,
     onRequestPermissions: (List<String>) -> Unit = {},
-    onOpenAppSettings: () -> Unit = {}
+    onOpenAppSettings: () -> Unit = {},
+    onOpenVoiceSettings: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val runtime = remember(context.applicationContext) {
         (context.applicationContext as OpenClawApplication).nodeRuntime
     }
     var isConfigured by remember { mutableStateOf(settings.isConfigured()) }
-    var hotwordEnabled by remember { mutableStateOf(settings.hotwordEnabled) }
+    // 唤醒词开关显示的是**服务实际在不在跑**（不是设置里记的值）
+    val hotwordEnabled by com.openclaw.assistant.service.HotwordService.running.collectAsState()
+    var continuousMode by remember { mutableStateOf(settings.continuousMode) }
+    var statusBarShortcut by remember { mutableStateOf(settings.statusBarShortcut) }
     val displayWakeWord = settings.getWakeWordDisplayName()
     var isAssistantSet by remember { mutableStateOf((context as? MainActivity)?.isAssistantActive() ?: false) }
     val nodeConnected by runtime.isConnected.collectAsState()
@@ -636,6 +677,12 @@ fun MainScreen(
     var showLocationInfo by rememberSaveable { mutableStateOf(false) }
     
     var showScreenCaptureDialog by remember { mutableStateOf(false) }
+    // 主页按钮点完后要"等一会儿再看服务有没有真被系统绑上"，所以需要一个协程作用域
+    val homeScope = rememberCoroutineScope()
+    // 点「语音对话」/「打开聊天」时前提不满足：把原因摆出来（不再静默失败）
+    var preflightProblems by remember {
+        mutableStateOf<List<com.openclaw.assistant.ui.PreflightProblem>>(emptyList())
+    }
     val snackbarHostState = remember { SnackbarHostState() }
     val smsEnabled by runtime.smsEnabled.collectAsState()
     val screenRecordActive by runtime.screenRecordActive.collectAsState()
@@ -662,7 +709,7 @@ fun MainScreen(
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 isConfigured = settings.isConfigured()
-                hotwordEnabled = settings.hotwordEnabled
+                // 实际状态由 HotwordService.running 提供，这里不用再同步
                 isAssistantSet = (context as? MainActivity)?.isAssistantActive() ?: false
                 onRefreshDiagnostics()
             }
@@ -908,7 +955,7 @@ fun MainScreen(
                     initiallyExpanded = diagnostic?.let { it.sttStatus != DiagnosticStatus.READY || it.ttsStatus != DiagnosticStatus.READY } ?: false
                 ) {
                     if (diagnostic != null) {
-                        DiagnosticPanel(diagnostic, onRefreshDiagnostics)
+                        DiagnosticPanel(diagnostic, onRefreshDiagnostics, onOpenVoiceSettings)
                     }
                     if (diagnostic != null && allPermissionsStatus.isNotEmpty()) {
                         Spacer(modifier = Modifier.height(8.dp))
@@ -945,11 +992,42 @@ fun MainScreen(
                     showSwitch = true,
                     switchValue = hotwordEnabled,
                     onSwitchChange = { enabled ->
+                        // 只发指令；开关状态由服务回报（start/stop 成功与否都会反映出来）
                         (context as? MainActivity)?.toggleHotwordService(enabled)
-                        hotwordEnabled = enabled
                     },
                     isActive = hotwordEnabled,
                     showInfoIcon = false
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Row(modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Max), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                CompactActionCard(
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                    icon = Icons.Default.Forum,
+                    title = stringResource(R.string.continuous_conversation),
+                    description = if (continuousMode) "ON" else "OFF",
+                    showSwitch = true,
+                    switchValue = continuousMode,
+                    onSwitchChange = { enabled ->
+                        settings.continuousMode = enabled
+                        continuousMode = enabled
+                    },
+                    isActive = continuousMode
+                )
+                CompactActionCard(
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                    icon = Icons.Default.NotificationsActive,
+                    title = stringResource(R.string.status_bar_shortcut),
+                    description = if (statusBarShortcut) "ON" else "OFF",
+                    showSwitch = true,
+                    switchValue = statusBarShortcut,
+                    onSwitchChange = { enabled ->
+                        settings.statusBarShortcut = enabled
+                        statusBarShortcut = enabled
+                    },
+                    isActive = statusBarShortcut
                 )
             }
 
@@ -965,8 +1043,86 @@ fun MainScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             val chatContext = LocalContext.current
+            // 手动开启语音对话：连续对话=点一下就开始；非连续=对讲（点一下开始、再点一下结束，不足 1 秒算取消）
+            var pttStartedAt by remember { mutableStateOf(0L) }
             Button(
-                onClick = { chatContext.startActivity(Intent(chatContext, SessionListActivity::class.java)) },
+                onClick = {
+                    val now = System.currentTimeMillis()
+                    val startingFresh = pttStartedAt == 0L || now - pttStartedAt > 60_000L
+                    val startsNewRound = continuousMode || startingFresh
+                    // 起新的一轮前先过前提（麦克风权限 / 语音服务有没有被系统绑上 / 识别后端 / 回答后端）；
+                    // 对讲收尾那一支不查，否则会把"结束说话"挡住
+                    val problems = if (startsNewRound)
+                        com.openclaw.assistant.ui.HomePreflight.voiceProblems(chatContext)
+                    else emptyList()
+                    when {
+                        problems.isNotEmpty() -> preflightProblems = problems
+                        startsNewRound -> {
+                            pttStartedAt = now
+                            // 必须显式带上目标：不带就会落到"唤醒词连接方式"的默认值（网关），
+                            // 而本机通常只配了 Hermes 后端 → 会误报"网关未连接"
+                            val voiceTarget = com.openclaw.assistant.backend.VoiceTargetResolver
+                                .defaultTarget(chatContext)
+                            chatContext.startService(
+                                Intent(chatContext, OpenClawAssistantService::class.java)
+                                    .setAction(OpenClawAssistantService.ACTION_SHOW_ASSISTANT)
+                                    .putExtra(OpenClawAssistantService.EXTRA_VOICE_TARGET, voiceTarget)
+                            )
+                            // 还有一种"看着像没反应"的情况：系统的绑定标记还在、binder 已经死了
+                            // （进程被杀/更新安装后），此时框架的 isActiveService() 仍返回 true，
+                            // 但 onReady 永远不会来 → showSession 排到 30s 超时。3 秒后还没 ready 就明说。
+                            homeScope.launch {
+                                delay(3000)
+                                if (OpenClawAssistantService.created.value &&
+                                    !OpenClawAssistantService.ready.value
+                                ) {
+                                    preflightProblems = listOf(
+                                        com.openclaw.assistant.ui.PreflightProblem(
+                                            chatContext.getString(R.string.preflight_voice_not_bound),
+                                            com.openclaw.assistant.ui.PreflightFix.ASSISTANT_SETTINGS
+                                        )
+                                    )
+                                }
+                            }
+                        }
+                        else -> {
+                            val cancel = now - pttStartedAt < 1000L
+                            chatContext.sendBroadcast(
+                                Intent(OpenClawSession.ACTION_STOP_LISTENING)
+                                    .setPackage(chatContext.packageName)
+                                    .putExtra(OpenClawSession.EXTRA_CANCEL, cancel)
+                            )
+                            pttStartedAt = 0L
+                        }
+                    }
+                },
+                modifier = Modifier.fillMaxWidth().height(56.dp),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Icon(Icons.Default.Mic, contentDescription = null)
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(stringResource(R.string.voice_chat), fontSize = 18.sp, fontWeight = FontWeight.Medium)
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                stringResource(
+                    if (continuousMode) R.string.voice_chat_hint_continuous else R.string.voice_chat_hint_ptt
+                ),
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Button(
+                onClick = {
+                    // 打开聊天前先确认有启用的后端，否则进去只会看到一句"发送失败"
+                    val problems = com.openclaw.assistant.ui.HomePreflight.chatProblems(chatContext)
+                    if (problems.isNotEmpty()) {
+                        preflightProblems = problems
+                    } else {
+                        chatContext.startActivity(Intent(chatContext, SessionListActivity::class.java))
+                    }
+                },
                 modifier = Modifier.fillMaxWidth().height(56.dp),
                 shape = RoundedCornerShape(16.dp)
             ) {
@@ -1010,6 +1166,44 @@ fun MainScreen(
 
     if (showTroubleshooting) TroubleshootingDialog(onDismiss = { showTroubleshooting = false })
     if (showHowToUse) HowToUseDialog(displayWakeWord = displayWakeWord, onDismiss = { showHowToUse = false })
+
+    // 点「语音对话」/「打开聊天」但前提没满足：把缺的逐条列出来，并给一条"去哪补"的按钮
+    if (preflightProblems.isNotEmpty()) {
+        AlertDialog(
+            onDismissRequest = { preflightProblems = emptyList() },
+            title = { Text(stringResource(R.string.preflight_title)) },
+            text = {
+                Column {
+                    preflightProblems.forEach { problem ->
+                        Text("• ${problem.message}", fontSize = 14.sp)
+                        Spacer(modifier = Modifier.height(6.dp))
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    // 一次只带他去掉第一个（按检查顺序，前面的不解决后面也用不上）
+                    val fix = preflightProblems.first().fix
+                    preflightProblems = emptyList()
+                    when (fix) {
+                        com.openclaw.assistant.ui.PreflightFix.MIC_PERMISSION ->
+                            onRequestPermissions(listOf(Manifest.permission.RECORD_AUDIO))
+                        com.openclaw.assistant.ui.PreflightFix.ASSISTANT_SETTINGS -> onOpenAssistantSettings()
+                        com.openclaw.assistant.ui.PreflightFix.VOICE_SETTINGS -> onOpenVoiceSettings()
+                        com.openclaw.assistant.ui.PreflightFix.BACKEND_SETTINGS -> onOpenSettings()
+                    }
+                }) {
+                    Text(stringResource(R.string.preflight_action_fix))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { preflightProblems = emptyList() }) {
+                    Text(stringResource(R.string.preflight_action_cancel))
+                }
+            }
+        )
+    }
+
     if (showLocationInfo) {
         AlertDialog(
             onDismissRequest = { showLocationInfo = false },
@@ -1236,7 +1430,11 @@ fun CapabilityCard(
 }
 
 @Composable
-fun DiagnosticPanel(diagnostic: VoiceDiagnostic, onRefresh: () -> Unit) {
+fun DiagnosticPanel(
+    diagnostic: VoiceDiagnostic,
+    onRefresh: () -> Unit,
+    onOpenVoiceSettings: (() -> Unit)? = null
+) {
     // 「Fix in Settings」在系统里没有 TTS 引擎时不该跳设置页，而是弹装引擎的提示
     val showTtsEngineHint = remember { mutableStateOf(false) }
 
@@ -1260,7 +1458,8 @@ fun DiagnosticPanel(diagnostic: VoiceDiagnostic, onRefresh: () -> Unit) {
                 diagnostic.suggestions.forEach { suggestion ->
                     SuggestionItem(
                         suggestion = suggestion,
-                        onMissingTtsEngine = { showTtsEngineHint.value = true }
+                        onMissingTtsEngine = { showTtsEngineHint.value = true },
+                        onOpenVoiceSettings = onOpenVoiceSettings
                     )
                 }
             }
@@ -1292,9 +1491,14 @@ fun PermissionDiagnosticsPanel(allPermissionsStatus: List<PermissionStatusInfo>,
                     Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(perm.permissionName, fontSize = 12.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+                    val statusText = when {
+                        perm.isGranted && perm.grantedText != null -> perm.grantedText
+                        !perm.isGranted && perm.deniedText != null -> perm.deniedText
+                        perm.isGranted -> stringResource(R.string.permission_status_granted)
+                        else -> stringResource(R.string.permission_status_denied)
+                    }
                     Text(
-                        if (perm.isGranted) stringResource(R.string.permission_status_granted)
-                        else stringResource(R.string.permission_status_denied),
+                        statusText,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
                         color = color
@@ -1320,24 +1524,32 @@ fun DiagnosticItem(label: String, status: DiagnosticStatus, modifier: Modifier =
 fun SuggestionItem(
     suggestion: com.openclaw.assistant.speech.diagnostics.DiagnosticSuggestion,
     onMissingTtsEngine: (() -> Unit)? = null,
+    onOpenVoiceSettings: (() -> Unit)? = null,
 ) {
     val context = LocalContext.current
     Surface(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), color = MaterialTheme.colorScheme.surface, shape = RoundedCornerShape(8.dp), tonalElevation = 1.dp) {
         Row(modifier = Modifier.padding(8.dp).semantics(mergeDescendants = true) {}, verticalAlignment = Alignment.CenterVertically) {
             Text(text = suggestion.message, modifier = Modifier.weight(1f), fontSize = 12.sp, lineHeight = 16.sp)
-            if (suggestion.actionLabel != null && suggestion.intent != null) {
+            // app 内的跳转（如"更换识别方式" → 设置·语音模式）；系统页则走 Intent
+            val inAppAction = if (!suggestion.inAppDestination.isNullOrBlank()) onOpenVoiceSettings else null
+            if (suggestion.actionLabel != null && (inAppAction != null || suggestion.intent != null)) {
                 TextButton(onClick = {
-                    // 「Fix in Settings」这个动作是去系统 TTS 设置页；手机上没有任何 TTS 引擎时，
-                    // 那个页面打开也没用 —— 改成弹安装引擎的提示（和设置页保存时同一个弹窗）。
-                    val noTtsEngine = suggestion.isSystemSetting &&
-                        com.openclaw.assistant.speech.TTSEngineUtils.getAvailableEngines(context).isEmpty()
-                    if (noTtsEngine && onMissingTtsEngine != null) {
-                        onMissingTtsEngine()
+                    if (inAppAction != null) {
+                        inAppAction()
                     } else {
-                        try {
-                            context.startActivity(suggestion.intent)
-                        } catch (e: Exception) {
-                            Toast.makeText(context, context.getString(R.string.state_error), Toast.LENGTH_SHORT).show()
+                        // 「Fix in Settings」这个动作是去系统 TTS 设置页；手机上没有任何 TTS 引擎时，
+                        // 那个页面打开也没用 —— 改成弹安装引擎的提示（和设置页保存时同一个弹窗）。
+                        val noTtsEngine = suggestion.isSystemSetting &&
+                            com.openclaw.assistant.speech.TTSEngineUtils.getAvailableEngines(context).isEmpty()
+                        val intent = suggestion.intent
+                        if (noTtsEngine && onMissingTtsEngine != null) {
+                            onMissingTtsEngine()
+                        } else if (intent != null) {
+                            try {
+                                context.startActivity(intent)
+                            } catch (e: Exception) {
+                                Toast.makeText(context, context.getString(R.string.state_error), Toast.LENGTH_SHORT).show()
+                            }
                         }
                     }
                 }, contentPadding = PaddingValues(horizontal = 8.dp)) { Text(suggestion.actionLabel, fontSize = 12.sp) }

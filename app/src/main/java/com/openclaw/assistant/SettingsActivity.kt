@@ -230,11 +230,11 @@ class SettingsActivity : LocaleAwareActivity() {
                 } else {
                     SettingsScreen(
                         settings = settings,
-                        onSave = { languageChanged ->
+                        onSave = { languageChanged, bridgeSettingsTouched ->
                             // 收尾统一走 SettingsSaveSupport（和 MainActivity 的设置标签页共用同一份逻辑）：
-                            // 语言有变化 → 弹「是否立即重启」；桥在跑 → 用新配置重启一次 + Toast
+                            // 语言有变化 → 弹「是否立即重启」；仅"移动桥接"分类里的保存才重启桥 + Toast
                             val changed = com.openclaw.assistant.ui.settings.SettingsSaveSupport
-                                .afterSave(this, languageChanged)
+                                .afterSave(this, languageChanged, bridgeSettingsTouched)
                             if (changed) showLanguageRestart.value = true else finish()
                         },
                         onBack = { finish() },
@@ -256,9 +256,13 @@ class SettingsActivity : LocaleAwareActivity() {
 @Composable
 fun SettingsScreen(
     settings: SettingsRepository,
-    onSave: (languageChanged: Boolean) -> Unit,
+    /** 第二个参数：这轮保存是否发生在"移动桥接"分类里（宿主据此决定要不要重启桥） */
+    onSave: (languageChanged: Boolean, bridgeSettingsTouched: Boolean) -> Unit,
     onBack: () -> Unit,
-    onCredits: () -> Unit = {}
+    onCredits: () -> Unit = {},
+    /** 外部（主页诊断）要求的落地分类，值取 SettingsCategory 的名字；用完回调清掉 */
+    requestedCategory: String? = null,
+    onRequestedCategoryHandled: () -> Unit = {}
 ) {
     var httpUrl by rememberSaveable { mutableStateOf(settings.httpUrl) }
     var authToken by rememberSaveable { mutableStateOf(settings.authToken) }
@@ -274,6 +278,16 @@ fun SettingsScreen(
     var wakeWordSensitivity by rememberSaveable { mutableStateOf(settings.wakeWordSensitivity) }
     var speechSilenceTimeout by rememberSaveable { mutableStateOf(settings.speechSilenceTimeout.toFloat().coerceIn(5000f, 30000f)) }
     var speechLanguage by rememberSaveable { mutableStateOf(settings.speechLanguage) }
+    var asrEngine by rememberSaveable { mutableStateOf(settings.asrEngine) }
+    var asrOpenAiUrl by rememberSaveable { mutableStateOf(settings.asrOpenAiUrl) }
+    var asrOpenAiModel by rememberSaveable { mutableStateOf(settings.asrOpenAiModel) }
+    var asrLanguage by rememberSaveable { mutableStateOf(settings.asrLanguage) }
+    var asrFunAsrUrl by rememberSaveable { mutableStateOf(settings.asrFunAsrUrl) }
+    var asrHmsApiKey by rememberSaveable { mutableStateOf(settings.asrHmsApiKey) }
+    var asrEndSilenceMs by rememberSaveable { mutableStateOf(settings.asrEndSilenceMs) }
+    var asrSilenceThresholdDb by rememberSaveable { mutableStateOf(settings.asrSilenceThresholdDb) }
+    var showAsrEngineMenu by remember { mutableStateOf(false) }
+    var showAsrHmsKey by remember { mutableStateOf(false) }
     var appLanguage by rememberSaveable { mutableStateOf(settings.appLanguage) }
     // 本屏打开时的语言值：保存时用它和下拉里的选择比较，判断"语言是不是被改过"
     val languageWhenOpened = remember { settings.appLanguage }
@@ -441,6 +455,15 @@ fun SettingsScreen(
     )
 
     var selectedSettingsCategoryName by rememberSaveable { mutableStateOf(SettingsCategory.Overview.name) }
+    // 从主页诊断跳进来时（例如系统识别不可用 → 更换识别方式），直接落到指定分类
+    LaunchedEffect(requestedCategory) {
+        val requested = requestedCategory
+        if (!requested.isNullOrBlank()) {
+            runCatching { SettingsCategory.valueOf(requested) }
+                .onSuccess { selectedSettingsCategoryName = it.name }
+            onRequestedCategoryHandled()
+        }
+    }
     val selectedSettingsCategory = remember(selectedSettingsCategoryName) {
         runCatching { SettingsCategory.valueOf(selectedSettingsCategoryName) }
             .getOrDefault(SettingsCategory.Overview)
@@ -549,6 +572,14 @@ fun SettingsScreen(
                                 settings.wakewordConnectionType = wakewordConnectionType
                                 settings.speechSilenceTimeout = speechSilenceTimeout.toLong()
                                 settings.speechLanguage = speechLanguage
+                                settings.asrEngine = asrEngine
+                                settings.asrOpenAiUrl = asrOpenAiUrl.trim()
+                                settings.asrOpenAiModel = asrOpenAiModel.trim().ifBlank { "sensevoice" }
+                                settings.asrLanguage = asrLanguage.trim().ifBlank { "zh" }
+                                settings.asrFunAsrUrl = asrFunAsrUrl.trim()
+                                settings.asrHmsApiKey = asrHmsApiKey.trim()
+                                settings.asrEndSilenceMs = asrEndSilenceMs
+                                settings.asrSilenceThresholdDb = asrSilenceThresholdDb
                                 settings.appLanguage = appLanguage
                                 settings.thinkingSoundEnabled = thinkingSoundEnabled
                                 settings.fillerPhrasesEnabled = fillerPhrasesEnabled
@@ -571,7 +602,10 @@ fun SettingsScreen(
                                     HotwordService.start(context)
                                 }
                                 langDiag(context, "save: 各字段已写入，准备调 onSave")
-                                onSave(appLanguage.trim() != languageWhenOpened.trim())
+                                onSave(
+                                    appLanguage.trim() != languageWhenOpened.trim(),
+                                    selectedSettingsCategory == SettingsCategory.MobileBridge
+                                )
                               } catch (t: Throwable) {
                                 langDiag(context, "save: 抛异常 ${t::class.java.simpleName}: ${t.message}")
                               }
@@ -1450,6 +1484,219 @@ fun SettingsScreen(
                     }
                 }
             }
+
+            // --- Speech recognition ---
+            Text(
+                text = stringResource(R.string.asr_section_title),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(bottom = 4.dp)
+            )
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                )
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        stringResource(R.string.asr_engine_label),
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    ExposedDropdownMenuBox(
+                        expanded = showAsrEngineMenu,
+                        onExpandedChange = { showAsrEngineMenu = it }
+                    ) {
+                        val asrEngineLabel = when (asrEngine) {
+                            SettingsRepository.ASR_ENGINE_OPENAI_BATCH -> stringResource(R.string.asr_engine_openai)
+                            SettingsRepository.ASR_ENGINE_FUNASR_STREAM -> stringResource(R.string.asr_engine_funasr)
+                            SettingsRepository.ASR_ENGINE_HMS -> stringResource(R.string.asr_engine_hms)
+                            else -> stringResource(R.string.asr_engine_system)
+                        }
+                        OutlinedTextField(
+                            value = asrEngineLabel,
+                            onValueChange = {},
+                            readOnly = true,
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = showAsrEngineMenu) },
+                            modifier = Modifier.fillMaxWidth().menuAnchor()
+                        )
+                        ExposedDropdownMenu(
+                            expanded = showAsrEngineMenu,
+                            onDismissRequest = { showAsrEngineMenu = false }
+                        ) {
+                            listOf(
+                                SettingsRepository.ASR_ENGINE_SYSTEM to stringResource(R.string.asr_engine_system),
+                                SettingsRepository.ASR_ENGINE_OPENAI_BATCH to stringResource(R.string.asr_engine_openai),
+                                SettingsRepository.ASR_ENGINE_FUNASR_STREAM to stringResource(R.string.asr_engine_funasr),
+                                SettingsRepository.ASR_ENGINE_HMS to stringResource(R.string.asr_engine_hms)
+                            ).forEach { (id, label) ->
+                                DropdownMenuItem(
+                                    text = { Text(label) },
+                                    onClick = {
+                                        asrEngine = id
+                                        showAsrEngineMenu = false
+                                    },
+                                    leadingIcon = {
+                                        if (asrEngine == id) {
+                                            Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                        }
+                                    }
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        stringResource(
+                            when (asrEngine) {
+                                SettingsRepository.ASR_ENGINE_OPENAI_BATCH -> R.string.asr_hint_openai
+                                SettingsRepository.ASR_ENGINE_FUNASR_STREAM -> R.string.asr_hint_funasr
+                                SettingsRepository.ASR_ENGINE_HMS -> R.string.asr_hint_hms
+                                else -> R.string.asr_hint_system
+                            }
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    if (asrEngine == SettingsRepository.ASR_ENGINE_SYSTEM &&
+                        !com.openclaw.assistant.speech.SystemRecognizerStatus.isUsable(context)
+                    ) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            stringResource(R.string.asr_system_unavailable_hint),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+
+                    if (asrEngine == SettingsRepository.ASR_ENGINE_OPENAI_BATCH) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(stringResource(R.string.asr_openai_url_label), style = MaterialTheme.typography.bodyLarge)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        OutlinedTextField(
+                            value = asrOpenAiUrl,
+                            onValueChange = { asrOpenAiUrl = it },
+                            placeholder = { Text("http://host:8123/v1/audio/transcriptions") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri)
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(stringResource(R.string.asr_openai_model_label), style = MaterialTheme.typography.bodyLarge)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        OutlinedTextField(
+                            value = asrOpenAiModel,
+                            onValueChange = { asrOpenAiModel = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(stringResource(R.string.asr_language_label), style = MaterialTheme.typography.bodyLarge)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        OutlinedTextField(
+                            value = asrLanguage,
+                            onValueChange = { asrLanguage = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true
+                        )
+                    }
+
+                    if (asrEngine == SettingsRepository.ASR_ENGINE_FUNASR_STREAM) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(stringResource(R.string.asr_funasr_url_label), style = MaterialTheme.typography.bodyLarge)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        OutlinedTextField(
+                            value = asrFunAsrUrl,
+                            onValueChange = { asrFunAsrUrl = it },
+                            placeholder = { Text("ws://host:10095") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri)
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(stringResource(R.string.asr_language_label), style = MaterialTheme.typography.bodyLarge)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        OutlinedTextField(
+                            value = asrLanguage,
+                            onValueChange = { asrLanguage = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true
+                        )
+                    }
+
+                    // 收尾条件与静音阈值：只影响我们自己的录音后端（系统识别器与华为各自判定）
+                    if (asrEngine != SettingsRepository.ASR_ENGINE_SYSTEM &&
+                        asrEngine != SettingsRepository.ASR_ENGINE_HMS
+                    ) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(stringResource(R.string.asr_silence_threshold), style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            stringResource(R.string.asr_silence_threshold_desc),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            "%.0f dB".format(asrSilenceThresholdDb),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Slider(
+                            value = asrSilenceThresholdDb,
+                            onValueChange = { asrSilenceThresholdDb = it },
+                            valueRange = -70f..-20f,
+                            steps = 9,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(stringResource(R.string.asr_end_silence), style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            stringResource(R.string.asr_end_silence_desc),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            "%.1f s".format(asrEndSilenceMs / 1000f),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Slider(
+                            value = asrEndSilenceMs.toFloat(),
+                            onValueChange = { asrEndSilenceMs = it.toLong() },
+                            valueRange = 500f..5000f,
+                            steps = 44,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+
+                    if (asrEngine == SettingsRepository.ASR_ENGINE_HMS) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(stringResource(R.string.asr_hms_api_key_label), style = MaterialTheme.typography.bodyLarge)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        OutlinedTextField(
+                            value = asrHmsApiKey,
+                            onValueChange = { asrHmsApiKey = it },
+                            trailingIcon = {
+                                IconButton(onClick = { showAsrHmsKey = !showAsrHmsKey }) {
+                                    Icon(
+                                        if (showAsrHmsKey) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                        contentDescription = stringResource(if (showAsrHmsKey) R.string.action_hide_api_key else R.string.action_show_api_key)
+                                    )
+                                }
+                            },
+                            visualTransformation = if (showAsrHmsKey) VisualTransformation.None else PasswordVisualTransformation(),
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
 
             } // end CollapsibleSection for Voice
 

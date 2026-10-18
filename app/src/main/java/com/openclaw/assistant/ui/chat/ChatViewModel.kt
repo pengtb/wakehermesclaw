@@ -499,6 +499,18 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         return target?.type == com.openclaw.assistant.backend.BackendType.OPENCLAW_GATEWAY
     }
 
+    /**
+     * 出错时告诉用户是哪一环：聊天这边也只显示一行字，只有错误码看不出问题在哪。
+     * 口径与语音面板（OpenClawSession.staged）一致。
+     */
+    private fun staged(stageRes: Int, detail: String?): String {
+        val app = getApplication<Application>()
+        val stage = app.getString(stageRes)
+        val text = detail?.takeIf { it.isNotBlank() }
+            ?: app.getString(com.openclaw.assistant.R.string.error_network)
+        return app.getString(com.openclaw.assistant.R.string.error_with_stage, stage, text)
+    }
+
     fun sendMessage(text: String) {
         if (text.isBlank() && _uiState.value.attachments.isEmpty()) return
 
@@ -508,7 +520,10 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
             if (!nodeRuntime.chatHealthOk.value) {
                 Log.w(TAG, "sendMessage: chatHealthOk is false. useNodeChat=true")
                 val app = getApplication<Application>()
-                val errorMsg = app.getString(com.openclaw.assistant.R.string.error_gateway_not_connected)
+                val errorMsg = staged(
+                    com.openclaw.assistant.R.string.error_stage_backend,
+                    app.getString(com.openclaw.assistant.R.string.error_gateway_not_connected)
+                )
                 _uiState.update { it.copy(error = errorMsg) }
                 return
             }
@@ -544,7 +559,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                     cancelInitialFillerPhrase()
                     cancelWaitPhraseTimer()
                     stopThinkingSound()
-                    _uiState.update { it.copy(isThinking = false, error = e.message) }
+                    _uiState.update { it.copy(isThinking = false, error = staged(com.openclaw.assistant.R.string.error_stage_backend, e.message)) }
                 }
             }
             return
@@ -575,7 +590,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                 cancelInitialFillerPhrase()
                 cancelWaitPhraseTimer()
                 stopThinkingSound()
-                _uiState.update { it.copy(isThinking = false, error = e.message) }
+                _uiState.update { it.copy(isThinking = false, error = staged(com.openclaw.assistant.R.string.error_stage_backend, e.message)) }
             }
         }
     }
@@ -652,7 +667,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                         viewModelScope.launch {
                             cancelInitialFillerPhrase()
                             stopThinkingSound()
-                            _uiState.update { it.copy(isThinking = false, error = error.message) }
+                            _uiState.update { it.copy(isThinking = false, error = staged(com.openclaw.assistant.R.string.error_stage_backend, error.message)) }
                         }
                     }
                 )
@@ -660,7 +675,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                 viewModelScope.launch {
                     cancelInitialFillerPhrase()
                     stopThinkingSound()
-                    _uiState.update { it.copy(isThinking = false, error = e.message) }
+                    _uiState.update { it.copy(isThinking = false, error = staged(com.openclaw.assistant.R.string.error_stage_backend, e.message)) }
                 }
             }
         }
@@ -783,7 +798,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                                 } else {
                                     // Permanent error
                                     toneGenerator.startTone(android.media.ToneGenerator.TONE_PROP_NACK, 100)
-                                    _uiState.update { it.copy(isListening = false, error = result.message) }
+                                    _uiState.update { it.copy(isListening = false, error = staged(com.openclaw.assistant.R.string.error_stage_voice_input, result.message)) }
                                     lastInputWasVoice = false
                                     hasActuallySpoken = true // Break the while loop
                                 }

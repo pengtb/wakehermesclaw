@@ -54,6 +54,34 @@ fun CreditsScreen(
                 Spacer(modifier = Modifier.height(24.dp))
             }
 
+            // Speech recognition backend design reference
+            val creditsContext = LocalContext.current
+            Text(
+                stringResource(R.string.credits_asr_title),
+                style = MaterialTheme.typography.titleMedium
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                stringResource(R.string.credits_asr_description),
+                style = MaterialTheme.typography.bodyMedium
+            )
+            TextButton(
+                onClick = {
+                    try {
+                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/Skythinker616/gpt-assistant-android"))
+                        creditsContext.startActivity(intent)
+                    } catch (e: ActivityNotFoundException) {
+                        // No browser available; ignore
+                    }
+                }
+            ) {
+                Icon(Icons.Default.OpenInBrowser, contentDescription = null)
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(stringResource(R.string.credits_asr_repo_link))
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
             // Open Source Licenses
             Text(
                 stringResource(R.string.credits_oss_title),
@@ -75,6 +103,7 @@ fun CreditsScreen(
                 "OkHttp" to "Apache License 2.0",
                 "Gson" to "Apache License 2.0",
                 "Vosk" to "Apache License 2.0",
+                "HMS ML Kit" to "Huawei SDK License",
                 "Bouncy Castle" to "Bouncy Castle License"
             )
 

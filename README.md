@@ -841,3 +841,9 @@ MIT License - 詳細は [LICENSE](LICENSE) を参照。
 
 Made with ❤️ for [OpenClaw](https://github.com/openclaw/openclaw)
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/R5R51S97C4)
+
+### 8. 致谢 / Acknowledgements
+
+语音识别层的「统一接口 + 多后端」结构参考了 [gpt-assistant-android](https://github.com/Skythinker616/gpt-assistant-android)（作者 Skythinker616，GPL-3.0）的 `AsrClientBase` 设计：它的抽象接口、以及华为 HMS ML Kit 的接入方式，是本项目 `speech/asr/` 的参考样板。本项目按同样思路自行实现（未复制其代码，故授权仍为 MIT）。
+
+The pluggable multi-backend structure of this project's speech recognition layer follows the `AsrClientBase` design of [gpt-assistant-android](https://github.com/Skythinker616/gpt-assistant-android) (by Skythinker616, GPL-3.0), which also served as the reference for the Huawei HMS ML Kit integration. The implementation here was written independently (no code copied, so this project stays MIT).

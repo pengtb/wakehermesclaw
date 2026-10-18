@@ -5,6 +5,9 @@ import android.content.Intent
 import android.speech.SpeechRecognizer
 import android.speech.tts.TextToSpeech
 import com.openclaw.assistant.R
+import com.openclaw.assistant.data.SettingsRepository
+import com.openclaw.assistant.speech.asr.AsrEngineKind
+import com.openclaw.assistant.speech.SystemRecognizerStatus
 import java.util.Locale
 
 /**
@@ -29,7 +32,9 @@ data class DiagnosticSuggestion(
     val message: String,
     val actionLabel: String? = null,
     val intent: Intent? = null,
-    val isSystemSetting: Boolean = false
+    val isSystemSetting: Boolean = false,
+    /** 非空表示这个动作是"跳到 app 内某个设置分类"（目前只用到 "voice"），不走系统 Intent */
+    val inAppDestination: String? = null
 )
 
 /**
@@ -63,23 +68,41 @@ class VoiceDiagnostics(private val context: Context) {
     )
 
     private fun checkSTT(): ComponentCheckResult {
-        val isAvailable = SpeechRecognizer.isRecognitionAvailable(context)
-        if (!isAvailable) {
+        val kind = AsrEngineKind.fromId(
+            runCatching { SettingsRepository.getInstance(context).asrEngine }.getOrNull()
+        )
+        // 选了非系统后端：识别不走系统服务，这里只报当前用的是什么（系统识别器在不在与它无关）
+        if (kind != AsrEngineKind.SYSTEM) {
+            return ComponentCheckResult(
+                status = DiagnosticStatus.READY,
+                engine = context.getString(asrEngineLabelRes(kind))
+            )
+        }
+        if (!SystemRecognizerStatus.isUsable(context)) {
             return ComponentCheckResult(
                 status = DiagnosticStatus.ERROR,
+                engine = context.getString(R.string.asr_engine_system),
                 suggestions = listOf(
                     DiagnosticSuggestion(
-                        context.getString(R.string.diag_stt_not_found),
-                        context.getString(R.string.diag_action_open_store),
-                        null
+                        message = context.getString(R.string.diag_stt_system_unavailable),
+                        actionLabel = context.getString(R.string.diag_action_switch_recognition),
+                        inAppDestination = "voice"
                     )
                 )
             )
         }
         return ComponentCheckResult(
             status = DiagnosticStatus.READY,
-            engine = context.getString(R.string.diag_engine_default)
+            engine = context.getString(R.string.asr_engine_system)
         )
+    }
+
+    /** 识别后端名，用于诊断里显示当前用的是哪个 */
+    private fun asrEngineLabelRes(kind: AsrEngineKind): Int = when (kind) {
+        AsrEngineKind.OPENAI_BATCH -> R.string.asr_engine_openai
+        AsrEngineKind.FUNASR_STREAM -> R.string.asr_engine_funasr
+        AsrEngineKind.HMS -> R.string.asr_engine_hms
+        AsrEngineKind.SYSTEM -> R.string.asr_engine_system
     }
 
     private fun checkTTS(tts: TextToSpeech?): ComponentCheckResult {

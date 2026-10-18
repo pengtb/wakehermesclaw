@@ -200,6 +200,11 @@ private enum class SpecialAccessToggle(
         R.string.permission_install_unknown_apps,
         R.string.permission_install_unknown_apps_desc,
         Icons.Default.SystemUpdate
+    ),
+    AssistantRole(
+        R.string.permission_default_assistant,
+        R.string.permission_default_assistant_desc,
+        Icons.Default.Mic
     )
 }
 
@@ -949,6 +954,8 @@ private fun PermissionsStep(onNext: () -> Unit) {
             when (toggle) {
                 SpecialAccessToggle.NotificationListener -> isNotificationListenerEnabled(context)
                 SpecialAccessToggle.AppUpdates -> canInstallUnknownApps(context)
+                SpecialAccessToggle.AssistantRole ->
+                    com.openclaw.assistant.speech.AssistantRoleStatus.isDefaultAssistant(context)
             }
         })
     }
@@ -972,6 +979,8 @@ private fun PermissionsStep(onNext: () -> Unit) {
                     when (toggle) {
                         SpecialAccessToggle.NotificationListener -> isNotificationListenerEnabled(context)
                         SpecialAccessToggle.AppUpdates -> canInstallUnknownApps(context)
+                        SpecialAccessToggle.AssistantRole ->
+                            com.openclaw.assistant.speech.AssistantRoleStatus.isDefaultAssistant(context)
                     }
                 }
                 // Also refresh normal permissions in case they were changed in settings
@@ -1050,6 +1059,9 @@ private fun PermissionsStep(onNext: () -> Unit) {
                                 context.startActivity(intent)
                             }
                         }
+                        // 数字助理：没设就弹系统的角色请求框，设过了就去助理设置页
+                        SpecialAccessToggle.AssistantRole ->
+                            com.openclaw.assistant.speech.AssistantRoleStatus.openAssistantSettings(context)
                     }
                 }
             )
@@ -1206,6 +1218,8 @@ private fun FinalCheckStep(
             when (toggle) {
                 SpecialAccessToggle.NotificationListener -> isNotificationListenerEnabled(context)
                 SpecialAccessToggle.AppUpdates -> canInstallUnknownApps(context)
+                SpecialAccessToggle.AssistantRole ->
+                    com.openclaw.assistant.speech.AssistantRoleStatus.isDefaultAssistant(context)
             }
         }
     }

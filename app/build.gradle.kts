@@ -72,6 +72,15 @@ android {
         // 光看版本号分不出装的是哪一次编译（排查"这版到底带没带某个修复"时很要命）。
         buildConfigField("String", "BUILD_TAG", "\"${getBuildTag()}\"")
 
+        // 华为 HMS 语音识别的默认 API Key：只从本机 local.properties 读（该文件已在 .gitignore 里），
+        // 仓库里不带任何人的 key。留空时设置里就是空的，需要手动填。
+        val hmsAsrKey = localProperties.getProperty("hms.asr.key", "").trim()
+        buildConfigField("String", "HMS_ASR_KEY", "\"$hmsAsrKey\"")
+        // 云侧服务还要 App ID（日志里的 "appId is invalid" 就是缺这个）和签名指纹，
+        // 同样只从 local.properties 读，默认空。
+        buildConfigField("String", "HMS_APP_ID", "\"${localProperties.getProperty("hms.asr.appid", "").trim()}\"")
+        buildConfigField("String", "HMS_CERT_SHA256", "\"${localProperties.getProperty("hms.asr.cert", "").trim()}\"")
+
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
             useSupportLibrary = true
@@ -185,6 +194,9 @@ androidComponents {
 
 dependencies {
     implementation(project(":shared"))
+
+    // 华为 HMS ML Kit 语音识别（自带 SDK 的系统识别；需自己申请 AGC API Key，且设备要有 HMS Core）
+    implementation("com.huawei.hms:ml-computer-voice-asr:3.12.0.301")
 
     // Core Android
     implementation("androidx.core:core-ktx:1.12.0")

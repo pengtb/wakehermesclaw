@@ -111,6 +111,12 @@ adb -s <设备地址> install -r <apk>      # 装到真机（debug 包名 com.op
   `adb install`（streamed install）会以**空错误信息**失败（`failed to install <apk>:` 后面什么都没有），
   换 LAN 立刻成功；`--no-streaming` 走 tailnet 也会 `device offline`。同一个端口在两种地址上都可连。
 
+- **装包（update）之后系统的语音助理绑定会掉**：`dumpsys voiceinteraction` 里变成 `(No active implementation)`，
+  这时主页「语音对话」是**空操作**（服务侧只会把 showSession 挂进 30s 的等待队列，等 onReady，而系统没绑就永远不来）。
+  恢复：`adb shell settings put secure assistant <pkg>/com.openclaw.assistant.service.OpenClawAssistantService`
+  （写回同一个值就会触发系统重新绑定），或重启手机/在系统设置里重选数字助理。
+  App 侧已加前置检查（`ui/HomePreflight`），点按钮前会先查这一项。
+
 - 需要 JDK 17 与 Android SDK；`app/google-services.json` 可从 `.example` 复制并把 `FIREBASE_ENABLED=false`。
 - Robolectric 需要 android-all 制品，国内可用 init 脚本把 `robolectric.dependency.repo.url` 指向镜像。
 - 单测里**不要**碰 `SettingsRepository`：它基于 `EncryptedSharedPreferences`（AndroidKeyStore），Robolectric 下
@@ -138,3 +144,15 @@ adb -s <设备地址> install -r <apk>      # 装到真机（debug 包名 com.op
 - 不要把界面上"是否在运行/是否启用"的信号接到持久化的**设置值**上：桥接一律读 `serverRunning`、
   能力开关一律读 `allowedCapabilityGroups`（见第 3 节）。
 - 不要在保存流程里调用 `AppCompatDelegate.setApplicationLocales()`（见第 2 节）。
+
+## 9. 按钮前置检查与错误提示（别让界面"点了没反应"）
+
+- 主页「语音对话」「打开聊天」点下去先过 `ui/HomePreflight`：语音那条查
+  麦克风权限 → 语音服务有没有被系统绑定（`VoiceInteractionService.isActiveService`）→
+  选中的识别后端有没有填地址/密钥 → 这一轮要走的回复后端在不在；
+  聊天那条只查有没有启用的后端。缺什么就用弹窗逐条列出来，并把「去处理」指到对应设置页。
+- **移动桥接跟这两条链路无关**，别把它当门口闸：桥是 Hermes 主动调手机的**反向**通道（手机监听 8787）；
+  语音和聊天都是手机主动往外连（识别服务、Hermes API Server、网关）。把桥加进前置检查只会误报。
+- 错误提示统一带环节：`OpenClawSession.staged()` / `ChatViewModel.staged()` 把文案包成
+  `【环节】细节`（环节＝语音识别 / 后端连接 / 配置）。新增错误分支时照这个包一层，
+  只丢一个错误码（比如 `HTTP 502`）用户看不出是哪一环的问题。

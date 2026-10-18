@@ -33,12 +33,21 @@ import com.openclaw.assistant.ui.LocaleAwareActivity
 object SettingsSaveSupport {
 
     /**
-     * 保存后统一收尾：桥在运行就用新配置重启一次 + 提示。
+     * 保存后统一收尾：按需重启移动桥接 + 提示。
+     *
+     * 重启**只在这轮保存来自"移动桥接"设置时才做**（`restartBridge = true`）：
+     * 桥的 bindMode/port 之类只有 server.start() 时才读，所以在桥设置页保存需要重启；
+     * 而改语言、语音、唤醒词等跟桥无关的设置时顺手重启一次，会把正在用的外部客户端踢掉，没必要。
      *
      * @param languageChanged SettingsScreen 传上来的"下拉里的语言和本屏打开时不同"
+     * @param restartBridge   本轮保存是否来自移动桥接设置（SettingsScreen 按当前分类判断）
      * @return 语言是否真的变了（调用方据此决定要不要弹「是否立即重启」）
      */
-    fun afterSave(activity: LocaleAwareActivity, languageChanged: Boolean): Boolean {
+    fun afterSave(
+        activity: LocaleAwareActivity,
+        languageChanged: Boolean,
+        restartBridge: Boolean = false
+    ): Boolean {
         val saved = SettingsRepositoryHolder.language(activity)
         val changed = languageChanged || saved != activity.appliedLanguageTag
         LocaleAwareActivity.langDiag(
@@ -47,10 +56,14 @@ object SettingsSaveSupport {
                 "saved='$saved' applied='${activity.appliedLanguageTag}' → 语言有变化=$changed"
         )
 
-        // 桥开着就用新配置重启（bindMode/port 只在 server start() 时才读）
-        val restarted = runCatching { MobileBridgeService.restartIfRunning(activity) }
-            .onFailure { LocaleAwareActivity.langDiag(activity, "桥重启失败（不影响保存）：$it") }
-            .getOrDefault(false)
+        // 只在"移动桥接"设置里保存时重启（bindMode/port 只在 server start() 时才读）
+        val restarted = if (restartBridge) {
+            runCatching { MobileBridgeService.restartIfRunning(activity) }
+                .onFailure { LocaleAwareActivity.langDiag(activity, "桥重启失败（不影响保存）：$it") }
+                .getOrDefault(false)
+        } else {
+            false
+        }
         val messageRes = if (restarted) R.string.saved_bridge_restarted else R.string.saved
         Toast.makeText(activity, activity.getString(messageRes), Toast.LENGTH_SHORT).show()
         return changed

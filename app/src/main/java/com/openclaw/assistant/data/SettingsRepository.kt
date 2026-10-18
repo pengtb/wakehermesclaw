@@ -280,6 +280,57 @@ class SettingsRepository(context: Context) {
         get() = prefs.getString(KEY_SPEECH_LANGUAGE, "") ?: ""
         set(value) = prefs.edit().putString(KEY_SPEECH_LANGUAGE, value).apply()
 
+    // --- 语音识别引擎：system / openai_batch / funasr_stream（默认 system）---
+    var asrEngine: String
+        get() = prefs.getString(KEY_ASR_ENGINE, ASR_ENGINE_SYSTEM) ?: ASR_ENGINE_SYSTEM
+        set(value) = prefs.edit().putString(KEY_ASR_ENGINE, value).apply()
+
+    /** OpenAI 兼容转写接口的完整地址（POST 到它，multipart 上传音频） */
+    var asrOpenAiUrl: String
+        get() = prefs.getString(KEY_ASR_OPENAI_URL, "") ?: ""
+        set(value) = prefs.edit().putString(KEY_ASR_OPENAI_URL, value).apply()
+
+    /** 转写服务要的模型名 */
+    var asrOpenAiModel: String
+        get() = prefs.getString(KEY_ASR_OPENAI_MODEL, "sensevoice") ?: "sensevoice"
+        set(value) = prefs.edit().putString(KEY_ASR_OPENAI_MODEL, value).apply()
+
+    /** 识别语言（SenseVoice 需要 zh 或 auto） */
+    var asrLanguage: String
+        get() = prefs.getString(KEY_ASR_LANGUAGE, "zh") ?: "zh"
+        set(value) = prefs.edit().putString(KEY_ASR_LANGUAGE, value).apply()
+
+    /** FunASR 实时 WebSocket 服务地址 */
+    var asrFunAsrUrl: String
+        get() = prefs.getString(KEY_ASR_FUNASR_URL, "") ?: ""
+        set(value) = prefs.edit().putString(KEY_ASR_FUNASR_URL, value).apply()
+
+    /** 华为 HMS ML Kit 语音识别：AGC 应用的 API Key。
+     *  默认值来自本机 local.properties 的 hms.asr.key（BuildConfig.HMS_ASR_KEY，仓库里不带 key）；
+     *  设置里填过就以后者为准。 */
+    var asrHmsApiKey: String
+        get() = prefs.getString(KEY_ASR_HMS_API_KEY, null)
+            ?: com.openclaw.assistant.BuildConfig.HMS_ASR_KEY
+        set(value) = prefs.edit().putString(KEY_ASR_HMS_API_KEY, value).apply()
+
+    /**
+     * 收尾条件：说完之后静音多久就算这句说完了（毫秒）。
+     * 只作用于我们自己的录音后端（OpenAI 兼容 / FunASR 流式 / 华为），系统识别器那条由它自己判定。
+     */
+    var asrEndSilenceMs: Long
+        get() = prefs.getLong(KEY_ASR_END_SILENCE_MS, 1200L)
+        set(value) = prefs.edit().putLong(KEY_ASR_END_SILENCE_MS, value).apply()
+
+    /** 静音阈值（dBFS）：低于这个电平当作没在说话（还会叠加"噪声底 +8dB"的自适应判定） */
+    var asrSilenceThresholdDb: Float
+        get() = prefs.getFloat(KEY_ASR_SILENCE_THRESHOLD_DB, -50f)
+        set(value) = prefs.edit().putFloat(KEY_ASR_SILENCE_THRESHOLD_DB, value).apply()
+
+    /** 状态栏快捷方式（暂未实现，开关只记住状态） */
+    var statusBarShortcut: Boolean
+        get() = prefs.getBoolean(KEY_STATUS_BAR_SHORTCUT, false)
+        set(value) = prefs.edit().putBoolean(KEY_STATUS_BAR_SHORTCUT, value).apply()
+
     // App UI language (BCP-47 tag, empty = system default)
     var appLanguage: String
         get() = prefs.getString(KEY_APP_LANGUAGE, "") ?: ""
@@ -386,6 +437,12 @@ class SettingsRepository(context: Context) {
     }
 
     companion object {
+        /** 语音识别后端标识（与 AsrEngineKind.id 一致） */
+        const val ASR_ENGINE_SYSTEM = "system"
+        const val ASR_ENGINE_OPENAI_BATCH = "openai_batch"
+        const val ASR_ENGINE_FUNASR_STREAM = "funasr_stream"
+        const val ASR_ENGINE_HMS = "hms"
+
         private const val PREFS_NAME = "openclaw_secure_prefs"
         private const val KEY_HTTP_URL = "webhook_url"
         private const val KEY_AUTH_TOKEN = "auth_token"
@@ -418,6 +475,15 @@ class SettingsRepository(context: Context) {
         private const val KEY_MEDIA_BUTTON_ENABLED = "media_button_enabled"
         private const val KEY_DISMISSED_UPDATE_VERSION = "dismissed_update_version"
         private const val KEY_SPEECH_LANGUAGE = "speech_language"
+        private const val KEY_ASR_ENGINE = "asr_engine"
+        private const val KEY_ASR_OPENAI_URL = "asr_openai_url"
+        private const val KEY_ASR_OPENAI_MODEL = "asr_openai_model"
+        private const val KEY_ASR_LANGUAGE = "asr_language"
+        private const val KEY_ASR_FUNASR_URL = "asr_funasr_url"
+        private const val KEY_ASR_HMS_API_KEY = "asr_hms_api_key"
+        private const val KEY_ASR_END_SILENCE_MS = "asr_end_silence_ms"
+        private const val KEY_ASR_SILENCE_THRESHOLD_DB = "asr_silence_threshold_db"
+        private const val KEY_STATUS_BAR_SHORTCUT = "status_bar_shortcut"
         private const val KEY_APP_LANGUAGE = "app_language"
         private const val KEY_HAS_COMPLETED_SETUP = "has_completed_setup"
         

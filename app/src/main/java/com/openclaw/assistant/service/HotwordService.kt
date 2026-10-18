@@ -26,6 +26,7 @@ import com.openclaw.assistant.BuildConfig
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.openclaw.assistant.data.SettingsRepository
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.asStateFlow
 import org.vosk.Model
 import org.vosk.Recognizer
 import org.vosk.android.RecognitionListener as VoskRecognitionListener
@@ -46,6 +47,10 @@ class HotwordService : Service(), VoskRecognitionListener {
         private const val SAMPLE_RATE = 16000.0f
         const val ACTION_RESUME_HOTWORD = "com.openclaw.assistant.ACTION_RESUME_HOTWORD"
         const val ACTION_PAUSE_HOTWORD = "com.openclaw.assistant.ACTION_PAUSE_HOTWORD"
+
+        /** 服务是否真的在跑 —— 主页开关要反映实际状态，而不是设置里记的值 */
+        private val _running = kotlinx.coroutines.flow.MutableStateFlow(false)
+        val running: kotlinx.coroutines.flow.StateFlow<Boolean> = _running.asStateFlow()
         
         fun start(context: Context) {
             val intent = Intent(context, HotwordService::class.java)
@@ -136,6 +141,7 @@ class HotwordService : Service(), VoskRecognitionListener {
 
     override fun onCreate() {
         super.onCreate()
+        _running.value = true
 
         // Safety net: catch uncaught Vosk thread crashes to prevent app-wide crash
         val previousHandler = Thread.getDefaultUncaughtExceptionHandler()
@@ -243,6 +249,7 @@ class HotwordService : Service(), VoskRecognitionListener {
 
     override fun onDestroy() {
         super.onDestroy()
+        _running.value = false
         cancelWatchdog()
         try {
             unregisterReceiver(controlReceiver)

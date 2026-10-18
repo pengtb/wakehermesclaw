@@ -45,7 +45,7 @@ import com.openclaw.assistant.OpenClawApplication
 import com.openclaw.assistant.backend.VoiceBackendSelector
 import com.openclaw.assistant.data.SettingsRepository
 import com.openclaw.assistant.api.OpenClawClient
-import com.openclaw.assistant.speech.SpeechRecognizerManager
+import com.openclaw.assistant.speech.asr.AsrManager
 import com.openclaw.assistant.speech.TTSManager
 import com.openclaw.assistant.speech.TTSState
 import com.openclaw.assistant.speech.SpeechResult
@@ -75,6 +75,10 @@ class OpenClawSession(
 
     companion object {
         private const val TAG = "OpenClawSession"
+
+        /** 主页对讲按钮 → 会话：收尾当前这轮识别 */
+        const val ACTION_STOP_LISTENING = "com.openclaw.assistant.ACTION_STOP_LISTENING"
+        const val EXTRA_CANCEL = "com.openclaw.assistant.EXTRA_CANCEL"
         private const val INITIAL_FILLER_DELAY_MS = 750L
         private const val INTERRUPT_LISTEN_DELAY_MS = 350L
     }
@@ -82,7 +86,7 @@ class OpenClawSession(
     private val settings = SettingsRepository.getInstance(context)
     private var sessionArgs: Bundle? = initialSessionArgs
     private val apiClient = OpenClawClient()
-    private lateinit var speechManager: SpeechRecognizerManager
+    private lateinit var speechManager: AsrManager
     private lateinit var ttsManager: TTSManager
     
     // Repository
@@ -93,6 +97,21 @@ class OpenClawSession(
     private var initialFillerPhraseJob: Job? = null
     private var auxiliarySpeechJob: Job? = null
     @Volatile private var ignoreNextTtsStop = false
+    /** 主页"语音对话"按钮（对讲模式）用它来收尾：stop=说完发送，cancel=这轮不要了 */
+    private val stopListeningReceiver = object : android.content.BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action != ACTION_STOP_LISTENING) return
+            val cancel = intent.getBooleanExtra(EXTRA_CANCEL, false)
+            Log.d(TAG, "收到 ACTION_STOP_LISTENING cancel=$cancel, state=" + currentState.value)
+            if (cancel) {
+                speechManager.cancelListening()
+                finish()
+            } else {
+                speechManager.stopListening()
+            }
+        }
+    }
+
     private val interruptReceiver = object : android.content.BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action != "com.openclaw.assistant.ACTION_INTERRUPT_TTS") return
@@ -125,6 +144,33 @@ class OpenClawSession(
         return effectiveVoiceTarget() == SettingsRepository.VOICE_TARGET_OPENCLAW
     }
 
+    /**
+     * O网关不可用时的提示。
+     * 本机明明配了 Hermes 后端却还指向 OpenClaw 网关，多半是设置里"连接方式"选错了 ——
+     * 这时候只说"网关未连接"没法定毛病，直接告诉用户改成"用 HTTP"。
+     */
+    private fun gatewayUnavailableMessage(): String {
+        val hasHermes = runCatching {
+            com.openclaw.assistant.backend.BackendRepository.getInstance(context).backends.value
+                .any { it.enabled && it.type == com.openclaw.assistant.backend.BackendType.HERMES_API_SERVER }
+        }.getOrDefault(false)
+        return if (hasHermes) {
+            context.getString(R.string.error_voice_use_http_hint)
+        } else {
+            context.getString(R.string.error_gateway_not_connected)
+        }
+    }
+
+    /**
+     * 给错误加上"是哪一环出的问题"。
+     * 面板上只有一行字，只有错误码（比如 HTTP 502）时用户没法知道是识别、后端还是配置的问题。
+     */
+    private fun staged(stageRes: Int, detail: String?): String {
+        val stage = context.getString(stageRes)
+        val text = detail?.takeIf { it.isNotBlank() } ?: context.getString(R.string.error_network)
+        return context.getString(R.string.error_with_stage, stage, text)
+    }
+
     // WakeLock to keep CPU alive during voice conversation when screen is off
     private var wakeLock: PowerManager.WakeLock? = null
 
@@ -151,7 +197,7 @@ class OpenClawSession(
              Log.w(TAG, "Lifecycle ON_CREATE failed", e)
         }
 
-        speechManager = SpeechRecognizerManager(context)
+        speechManager = AsrManager(context)
         ttsManager = TTSManager(context)
         val initialized = ttsManager.initializeCurrentProvider()
         Log.e(TAG, "Session TTS: initialized=$initialized ready=${ttsManager.isReady()} error=${ttsManager.getErrorMessage()}")
@@ -159,6 +205,12 @@ class OpenClawSession(
             context,
             interruptReceiver,
             android.content.IntentFilter("com.openclaw.assistant.ACTION_INTERRUPT_TTS"),
+            androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED
+        )
+        androidx.core.content.ContextCompat.registerReceiver(
+            context,
+            stopListeningReceiver,
+            android.content.IntentFilter(ACTION_STOP_LISTENING),
             androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED
         )
     }
@@ -217,7 +269,8 @@ class OpenClawSession(
                         finish()
                     },
                     onRetry = { startListening() },
-                    onInterrupt = { interruptAndListen() }
+                    onInterrupt = { interruptAndListen() },
+                    onStopListening = { speechManager.stopListening() }
                 )
             }
         }
@@ -238,10 +291,10 @@ class OpenClawSession(
             try {
                 speechManager.destroy()
             } catch (e: Exception) {
-                Log.w(TAG, "Failed to destroy existing SpeechRecognizerManager before recreation", e)
+                Log.w(TAG, "Failed to destroy existing AsrManager before recreation", e)
             }
         }
-        speechManager = SpeechRecognizerManager(context)
+        speechManager = AsrManager(context)
 
         lifecycleRegistry.handleLifecycleEvent(androidx.lifecycle.Lifecycle.Event.ON_START)
         lifecycleRegistry.handleLifecycleEvent(androidx.lifecycle.Lifecycle.Event.ON_RESUME)
@@ -293,7 +346,10 @@ class OpenClawSession(
         // Check settings
         if (!settings.isConfigured()) {
             currentState.value = AssistantState.ERROR
-            errorMessage.value = context.getString(R.string.error_config_required)
+            errorMessage.value = staged(
+                R.string.error_stage_config,
+                context.getString(R.string.error_config_required)
+            )
             displayText.value = context.getString(R.string.config_required)
             return
         }
@@ -303,7 +359,7 @@ class OpenClawSession(
             val nodeRuntime = (context.applicationContext as OpenClawApplication).nodeRuntime
             if (!nodeRuntime.chatHealthOk.value) {
                 currentState.value = AssistantState.ERROR
-                errorMessage.value = context.getString(R.string.error_gateway_not_connected)
+                errorMessage.value = staged(R.string.error_stage_backend, gatewayUnavailableMessage())
                 displayText.value = context.getString(R.string.config_required)
                 return
             }
@@ -374,6 +430,7 @@ class OpenClawSession(
         sendResumeBroadcast()
         try {
             context.unregisterReceiver(interruptReceiver)
+            runCatching { context.unregisterReceiver(stopListeningReceiver) }
         } catch (_: Exception) {
         }
 
@@ -448,7 +505,10 @@ class OpenClawSession(
                         android.media.AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
                 }
 
-                val listenResult = withTimeoutOrNull(30_000L) {
+                // 硬超时只当最后兜底：录音类后端的"没听到人声/麦克风读不到"都由引擎自己报错收尾，
+                // 这里主要防"卡死不回"。别设太小 —— 懒加载的转写服务冷启动要十几秒到一两分钟，
+                // 结果晚回来一点点就会被这个超时连同结果一起丢掉（表现为界面空文本）。
+                val listenResult = withTimeoutOrNull(150_000L) {
                     speechManager.startListening(settings.speechLanguage.ifEmpty { null }, settings.speechSilenceTimeout).collectLatest { result ->
                         when (result) {
                             is SpeechResult.Ready -> {
@@ -457,7 +517,10 @@ class OpenClawSession(
                                 playTone(android.media.ToneGenerator.TONE_PROP_BEEP)
                             }
                             is SpeechResult.Processing -> {
-                                // No sound here - thinking ACK sound will play when AI starts processing
+                                // 录完、正在上传/等服务端：切"处理中"，界面不至于看起来没反应
+                                if (currentState.value == AssistantState.LISTENING) {
+                                    currentState.value = AssistantState.PROCESSING
+                                }
                             }
                             is SpeechResult.Listening -> {
                                 if (currentState.value != AssistantState.LISTENING) {
@@ -507,7 +570,7 @@ class OpenClawSession(
                                 } else {
                                     playTone(android.media.ToneGenerator.TONE_PROP_NACK, 100)
                                     currentState.value = AssistantState.ERROR
-                                    errorMessage.value = result.message
+                                    errorMessage.value = staged(R.string.error_stage_voice_input, result.message)
                                     hasActuallySpoken = true
                                 }
                             }
@@ -517,7 +580,7 @@ class OpenClawSession(
                 }
 
                 if (listenResult == null && !hasActuallySpoken) {
-                    Log.w(TAG, "Speech recognition timed out (30s). Device may be locked.")
+                    Log.w(TAG, "Speech recognition timed out (150s). Device may be locked.")
                     // Manual timeout - only close session if not thinking/speaking
                     val state = currentState.value
                     if (state == AssistantState.THINKING || state == AssistantState.SPEAKING) {
@@ -575,7 +638,10 @@ class OpenClawSession(
                 cancelWaitPhraseTimer()
                 stopThinkingSound()
                 currentState.value = AssistantState.ERROR
-                errorMessage.value = context.getString(R.string.av_settings_no_hermes)
+                errorMessage.value = staged(
+                    R.string.error_stage_config,
+                    context.getString(R.string.av_settings_no_hermes)
+                )
                 return@launch
             }
             val primaryReply = try {
@@ -595,7 +661,7 @@ class OpenClawSession(
                 cancelWaitPhraseTimer()
                 stopThinkingSound()
                 currentState.value = AssistantState.ERROR
-                errorMessage.value = e.message ?: context.getString(R.string.error_network)
+                errorMessage.value = staged(R.string.error_stage_backend, e.message ?: context.getString(R.string.error_network))
                 return@launch
             }
             if (primaryReply != null) {
@@ -607,7 +673,7 @@ class OpenClawSession(
                     cancelInitialFillerPhrase()
                     stopThinkingSound()
                     currentState.value = AssistantState.ERROR
-                    errorMessage.value = context.getString(R.string.error_no_response)
+                    errorMessage.value = staged(R.string.error_stage_backend, context.getString(R.string.error_no_response))
                 }
                 return@launch
             }
@@ -617,7 +683,10 @@ class OpenClawSession(
                 cancelWaitPhraseTimer()
                 stopThinkingSound()
                 currentState.value = AssistantState.ERROR
-                errorMessage.value = context.getString(R.string.av_settings_no_hermes)
+                errorMessage.value = staged(
+                    R.string.error_stage_config,
+                    context.getString(R.string.av_settings_no_hermes)
+                )
                 return@launch
             }
 
@@ -754,7 +823,7 @@ class OpenClawSession(
             cancelInitialFillerPhrase()
             stopThinkingSound()
             currentState.value = AssistantState.ERROR
-            errorMessage.value = context.getString(R.string.error_gateway_not_connected)
+            errorMessage.value = gatewayUnavailableMessage()
             return
         }
 
@@ -790,7 +859,7 @@ class OpenClawSession(
                 cancelInitialFillerPhrase()
                 stopThinkingSound()
                 currentState.value = AssistantState.ERROR
-                errorMessage.value = context.getString(R.string.error_no_response)
+                errorMessage.value = staged(R.string.error_stage_backend, context.getString(R.string.error_no_response))
             }
         } catch (e: Exception) {
             Log.e(TAG, "Gateway error", e)
@@ -798,7 +867,7 @@ class OpenClawSession(
             cancelWaitPhraseTimer()
             stopThinkingSound()
             currentState.value = AssistantState.ERROR
-            errorMessage.value = e.message ?: context.getString(R.string.error_network)
+            errorMessage.value = staged(R.string.error_stage_backend, e.message ?: context.getString(R.string.error_network))
         }
     }
 
@@ -819,7 +888,7 @@ class OpenClawSession(
         } catch (e: Throwable) {
             cancelWaitPhraseTimer(); cancelInitialFillerPhrase(); stopThinkingSound()
             currentState.value = AssistantState.ERROR
-            errorMessage.value = e.message ?: context.getString(R.string.error_network)
+            errorMessage.value = staged(R.string.error_stage_backend, e.message ?: context.getString(R.string.error_network))
             return
         }
         if (primaryReply != null) {
@@ -831,7 +900,7 @@ class OpenClawSession(
             } else {
                 cancelInitialFillerPhrase(); stopThinkingSound()
                 currentState.value = AssistantState.ERROR
-                errorMessage.value = context.getString(R.string.error_no_response)
+                errorMessage.value = staged(R.string.error_stage_backend, context.getString(R.string.error_no_response))
             }
             return
         }
@@ -857,12 +926,12 @@ class OpenClawSession(
                     cancelInitialFillerPhrase()
                     stopThinkingSound()
                     currentState.value = AssistantState.ERROR
-                    errorMessage.value = response.error
+                    errorMessage.value = staged(R.string.error_stage_backend, response.error)
                 } else {
                     cancelInitialFillerPhrase()
                     stopThinkingSound()
                     currentState.value = AssistantState.ERROR
-                    errorMessage.value = context.getString(R.string.error_no_response)
+                    errorMessage.value = staged(R.string.error_stage_backend, context.getString(R.string.error_no_response))
                 }
             },
             onFailure = { error ->
@@ -870,7 +939,7 @@ class OpenClawSession(
                 cancelInitialFillerPhrase()
                 stopThinkingSound()
                 currentState.value = AssistantState.ERROR
-                errorMessage.value = error.message ?: context.getString(R.string.error_network)
+                errorMessage.value = staged(R.string.error_stage_backend, error.message ?: context.getString(R.string.error_network))
             }
         )
     }
@@ -896,9 +965,12 @@ class OpenClawSession(
             startListening()
         } else {
             stopThinkingSound()
-            // TTS disabled & continuous conversation OFF: Return to IDLE
+            // TTS disabled & continuous conversation OFF: Return to IDLE and close the panel
             currentState.value = AssistantState.IDLE
             SessionForegroundService.stop(context)
+            // 同 speakResponse 里的那一支：非连续对话这一轮结束就收面板
+            Log.d(TAG, "Response done, no TTS, continuous mode OFF. Finishing session.")
+            finish()
         }
     }
 
@@ -999,6 +1071,10 @@ class OpenClawSession(
                         currentState.value = AssistantState.IDLE
                         releaseWakeLock()
                         SessionForegroundService.stop(context)
+                        // 非连续对话：这一轮播完就关面板。只置 IDLE 的话，语音面板（独立窗口）
+                        // 会一直挂在主页上，用户得自己点右上角关掉
+                        Log.d(TAG, "TTS complete, continuous mode OFF. Finishing session.")
+                        finish()
                     }
                 } else {
                     currentState.value = AssistantState.ERROR
@@ -1092,7 +1168,9 @@ fun AssistantUI(
     audioLevel: Float,
     onClose: () -> Unit,
     onRetry: () -> Unit,
-    onInterrupt: () -> Unit = {}
+    onInterrupt: () -> Unit = {},
+    /** 正在听的时候点它 = 停止说话并发送（对讲模式收尾用；面板盖住了主页按钮，只能在面板里给） */
+    onStopListening: () -> Unit = {}
 ) {
     Box(
         modifier = Modifier
@@ -1171,6 +1249,12 @@ fun AssistantUI(
                                 onClickLabel = stringResource(R.string.interrupt_description),
                                 role = Role.Button
                             ) { onInterrupt() }
+                        } else if (state == AssistantState.LISTENING) {
+                            // 在听的时候点球 = 说完了（和下面的按钮同义）
+                            Modifier.clickable(
+                                onClickLabel = stringResource(R.string.voice_stop_speaking_description),
+                                role = Role.Button
+                            ) { onStopListening() }
                         } else Modifier
                     ),
                 contentAlignment = Alignment.Center,
@@ -1200,8 +1284,9 @@ fun AssistantUI(
                     AssistantState.ERROR -> stringResource(R.string.state_error)
                     else -> stringResource(R.string.state_ready)
                 },
-                fontSize = 14.sp,
-                color = Color.Gray
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Medium,
+                color = Color.Black.copy(alpha = 0.75f)
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -1237,6 +1322,14 @@ fun AssistantUI(
                     textAlign = TextAlign.Center,
                     modifier = Modifier.padding(horizontal = 16.dp)
                 )
+            }
+
+            // 正在听：给一个明确的"结束说话"（面板会盖住主页的按钮，对讲模式只能从这里收尾）
+            if (state == AssistantState.LISTENING) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Button(onClick = onStopListening) {
+                    Text(stringResource(R.string.voice_stop_speaking))
+                }
             }
 
             // Error message
