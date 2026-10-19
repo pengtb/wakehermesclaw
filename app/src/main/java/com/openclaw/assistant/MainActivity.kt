@@ -74,6 +74,7 @@ import com.openclaw.assistant.service.HotwordService
 import com.openclaw.assistant.service.NodeForegroundService
 import com.openclaw.assistant.service.OpenClawAssistantService
 import com.openclaw.assistant.service.OpenClawSession
+import com.openclaw.assistant.service.VoiceRecovery
 import com.openclaw.assistant.ui.GatewayTrustDialog
 import com.openclaw.assistant.speech.TTSUtils
 import com.openclaw.assistant.speech.diagnostics.DiagnosticStatus
@@ -1026,6 +1027,22 @@ fun MainScreen(
                     onSwitchChange = { enabled ->
                         settings.statusBarShortcut = enabled
                         statusBarShortcut = enabled
+                        // 打开时问一次要不要把磁贴加到面板（系统只在没加过时弹框；
+                        // 关掉没有对应 API 能把磁贴摘掉，这里只是把它置灰，见 VoiceTileService）
+                        if (enabled) {
+                            (context as? MainActivity)?.let {
+                                com.openclaw.assistant.service.QuickTilePrompt.offerAddTile(it)
+                            }
+                        }
+                        // 开关状态变了，让已经加过的磁贴重画一次（可用/已关闭）
+                        runCatching {
+                            android.service.quicksettings.TileService.requestListeningState(
+                                context,
+                                android.content.ComponentName(
+                                    context, com.openclaw.assistant.service.VoiceTileService::class.java
+                                )
+                            )
+                        }
                     },
                     isActive = statusBarShortcut
                 )
@@ -1052,36 +1069,66 @@ fun MainScreen(
                     val startsNewRound = continuousMode || startingFresh
                     // 起新的一轮前先过前提（麦克风权限 / 语音服务有没有被系统绑上 / 识别后端 / 回答后端）；
                     // 对讲收尾那一支不查，否则会把"结束说话"挡住
-                    val problems = if (startsNewRound)
+                    val blocking = if (startsNewRound)
                         com.openclaw.assistant.ui.HomePreflight.voiceProblems(chatContext)
                     else emptyList()
+                    // 电池优化白名单只是"（可选）"建议，和阻断项一起展示，但不拦操作
+                    val optionalTips = if (startsNewRound)
+                        com.openclaw.assistant.ui.HomePreflight.voiceOptionalTips(chatContext)
+                    else emptyList()
                     when {
-                        problems.isNotEmpty() -> preflightProblems = problems
+                        blocking.isNotEmpty() -> preflightProblems = blocking + optionalTips
                         startsNewRound -> {
                             pttStartedAt = now
                             // 必须显式带上目标：不带就会落到"唤醒词连接方式"的默认值（网关），
                             // 而本机通常只配了 Hermes 后端 → 会误报"网关未连接"
                             val voiceTarget = com.openclaw.assistant.backend.VoiceTargetResolver
                                 .defaultTarget(chatContext)
-                            chatContext.startService(
-                                Intent(chatContext, OpenClawAssistantService::class.java)
-                                    .setAction(OpenClawAssistantService.ACTION_SHOW_ASSISTANT)
-                                    .putExtra(OpenClawAssistantService.EXTRA_VOICE_TARGET, voiceTarget)
-                            )
-                            // 还有一种"看着像没反应"的情况：系统的绑定标记还在、binder 已经死了
-                            // （进程被杀/更新安装后），此时框架的 isActiveService() 仍返回 true，
-                            // 但 onReady 永远不会来 → showSession 排到 30s 超时。3 秒后还没 ready 就明说。
+                            if (!OpenClawAssistantService.ready.value) {
+                                Toast.makeText(
+                                    chatContext,
+                                    chatContext.getString(R.string.voice_reconnecting),
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                            // 半死状态（系统还记着绑定、onReady 永远不来）：不再干等 3 秒后甩一句
+                            // "去重启手机"，而是自己重连一遍——startService → 等 onReady →
+                            // 还不行就让系统重新 bind（ACTION_ASSIST），都失败才提示。
                             homeScope.launch {
-                                delay(3000)
-                                if (OpenClawAssistantService.created.value &&
-                                    !OpenClawAssistantService.ready.value
-                                ) {
+                                val outcome = VoiceRecovery.ensureReady(chatContext, voiceTarget)
+                                val failure = when (outcome) {
+                                    VoiceRecovery.Outcome.READY -> null
+                                    VoiceRecovery.Outcome.RESTARTING -> {
+                                        Toast.makeText(
+                                            chatContext,
+                                            chatContext.getString(R.string.voice_restarting),
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                        null
+                                    }
+                                    VoiceRecovery.Outcome.NOT_ASSISTANT ->
+                                        chatContext.getString(R.string.preflight_not_assistant)
+                                    VoiceRecovery.Outcome.FAILED ->
+                                        chatContext.getString(R.string.preflight_voice_not_bound)
+                                }
+                                val failureFix = when (outcome) {
+                                    // 重设数字助理救不了这种半死状态，直接给"重启应用"
+                                    VoiceRecovery.Outcome.FAILED ->
+                                        com.openclaw.assistant.ui.PreflightFix.RESTART_APP
+                                    else -> com.openclaw.assistant.ui.PreflightFix.ASSISTANT_SETTINGS
+                                }
+                                if (failure != null) {
                                     preflightProblems = listOf(
-                                        com.openclaw.assistant.ui.PreflightProblem(
-                                            chatContext.getString(R.string.preflight_voice_not_bound),
-                                            com.openclaw.assistant.ui.PreflightFix.ASSISTANT_SETTINGS
-                                        )
-                                    )
+                                        com.openclaw.assistant.ui.PreflightProblem(failure, failureFix)
+                                    ) + optionalTips
+                                } else if (optionalTips.isNotEmpty()) {
+                                    // 连上了：顺手把"（可选）"的电池优化建议提一次，别每次都弹
+                                    val appSettings = com.openclaw.assistant.data.SettingsRepository
+                                        .getInstance(chatContext)
+                                    if (!appSettings.batteryTipShown) {
+                                        appSettings.batteryTipShown = true
+                                        preflightProblems = optionalTips
+                                    }
                                 }
                             }
                         }
@@ -1167,33 +1214,70 @@ fun MainScreen(
     if (showTroubleshooting) TroubleshootingDialog(onDismiss = { showTroubleshooting = false })
     if (showHowToUse) HowToUseDialog(displayWakeWord = displayWakeWord, onDismiss = { showHowToUse = false })
 
-    // 点「语音对话」/「打开聊天」但前提没满足：把缺的逐条列出来，并给一条"去哪补"的按钮
+    // 点「语音对话」/「打开聊天」但前提没满足：把缺的逐条列出来，并给一条"去哪补"的按钮。
+    // 其中 optional=true 的条目是建议（比如电池优化白名单），单独一小段标「（可选）」，不拦操作。
     if (preflightProblems.isNotEmpty()) {
+        val preflightContext = androidx.compose.ui.platform.LocalContext.current
+        val blockingProblems = preflightProblems.filter { !it.optional }
+        val optionalProblems = preflightProblems.filter { it.optional }
+        fun applyFix(fix: com.openclaw.assistant.ui.PreflightFix) {
+            preflightProblems = emptyList()
+            when (fix) {
+                com.openclaw.assistant.ui.PreflightFix.MIC_PERMISSION ->
+                    onRequestPermissions(listOf(Manifest.permission.RECORD_AUDIO))
+                com.openclaw.assistant.ui.PreflightFix.ASSISTANT_SETTINGS -> onOpenAssistantSettings()
+                com.openclaw.assistant.ui.PreflightFix.VOICE_SETTINGS -> onOpenVoiceSettings()
+                com.openclaw.assistant.ui.PreflightFix.BACKEND_SETTINGS -> onOpenSettings()
+                com.openclaw.assistant.ui.PreflightFix.RESTART_APP ->
+                    com.openclaw.assistant.service.VoiceRecovery.restartProcess(
+                        preflightContext,
+                        com.openclaw.assistant.backend.VoiceTargetResolver
+                            .defaultTarget(preflightContext)
+                    )
+                com.openclaw.assistant.ui.PreflightFix.BATTERY_OPTIMIZATION ->
+                    com.openclaw.assistant.ui.BatteryOptimization.requestWhitelist(preflightContext)
+            }
+        }
         AlertDialog(
             onDismissRequest = { preflightProblems = emptyList() },
             title = { Text(stringResource(R.string.preflight_title)) },
             text = {
                 Column {
-                    preflightProblems.forEach { problem ->
+                    blockingProblems.forEach { problem ->
                         Text("• ${problem.message}", fontSize = 14.sp)
                         Spacer(modifier = Modifier.height(6.dp))
+                    }
+                    if (optionalProblems.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        optionalProblems.forEach { problem ->
+                            Text(
+                                "• " + stringResource(R.string.preflight_optional_tag) + " " + problem.message,
+                                fontSize = 13.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            TextButton(
+                                onClick = { applyFix(problem.fix) },
+                                contentPadding = PaddingValues(0.dp),
+                                modifier = Modifier.height(28.dp)
+                            ) {
+                                Text(stringResource(R.string.preflight_action_fix), fontSize = 13.sp)
+                            }
+                        }
                     }
                 }
             },
             confirmButton = {
-                TextButton(onClick = {
-                    // 一次只带他去掉第一个（按检查顺序，前面的不解决后面也用不上）
-                    val fix = preflightProblems.first().fix
-                    preflightProblems = emptyList()
-                    when (fix) {
-                        com.openclaw.assistant.ui.PreflightFix.MIC_PERMISSION ->
-                            onRequestPermissions(listOf(Manifest.permission.RECORD_AUDIO))
-                        com.openclaw.assistant.ui.PreflightFix.ASSISTANT_SETTINGS -> onOpenAssistantSettings()
-                        com.openclaw.assistant.ui.PreflightFix.VOICE_SETTINGS -> onOpenVoiceSettings()
-                        com.openclaw.assistant.ui.PreflightFix.BACKEND_SETTINGS -> onOpenSettings()
+                // 一次只带他去掉第一个（按检查顺序，前面的不解决后面也用不上）
+                if (blockingProblems.isNotEmpty()) {
+                    TextButton(onClick = { applyFix(blockingProblems.first().fix) }) {
+                        Text(
+                            stringResource(
+                                if (blockingProblems.first().fix == com.openclaw.assistant.ui.PreflightFix.RESTART_APP)
+                                    R.string.preflight_action_restart
+                                else R.string.preflight_action_fix
+                            )
+                        )
                     }
-                }) {
-                    Text(stringResource(R.string.preflight_action_fix))
                 }
             },
             dismissButton = {

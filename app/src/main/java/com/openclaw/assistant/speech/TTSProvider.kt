@@ -72,7 +72,10 @@ sealed class TTSState {
 object TTSProviderType {
     const val LOCAL = "local"
     const val ELEVENLABS = "elevenlabs"
-    const val OPENAI = "openai"
     const val VOICEVOX = "voicevox"
+    /** 任意 OpenAI /v1/audio/speech 兼容服务（含官方 OpenAI、aihubmix、自建 Qwen3-TTS/Kokoro） */
     const val OPENAI_COMPAT = "openai_compat"
+
+    /** 华为 HMS ML Kit 设备端语音合成 */
+    const val HMS = "hms_tts"
 }

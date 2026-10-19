@@ -960,6 +960,10 @@ private fun PermissionsStep(onNext: () -> Unit) {
         })
     }
 
+    var batteryWhitelisted by remember {
+        mutableStateOf(com.openclaw.assistant.ui.BatteryOptimization.isWhitelisted(context))
+    }
+
     val launcher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { results ->
@@ -989,6 +993,7 @@ private fun PermissionsStep(onNext: () -> Unit) {
                         ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
                     }
                 }
+                batteryWhitelisted = com.openclaw.assistant.ui.BatteryOptimization.isWhitelisted(context)
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -1066,6 +1071,15 @@ private fun PermissionsStep(onNext: () -> Unit) {
                 }
             )
         }
+
+        // （可选）电池优化白名单：不做也能用，只是语音服务/唤醒词更容易被系统回收
+        PermissionItem(
+            icon = Icons.Default.BatteryFull,
+            name = stringResource(R.string.battery_opt_title),
+            desc = stringResource(R.string.battery_opt_desc_optional),
+            isGranted = batteryWhitelisted,
+            onClick = { com.openclaw.assistant.ui.BatteryOptimization.requestWhitelist(context) }
+        )
 
         Spacer(modifier = Modifier.height(16.dp))
         } // end scrollable Column

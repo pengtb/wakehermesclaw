@@ -67,32 +67,33 @@ import kotlinx.coroutines.launch
 
 // ElevenLabs Voice Options
 object ElevenLabsVoiceOptions {
-    data class VoiceOption(val id: String, val name: String, val description: String)
-    
+    data class VoiceOption(val id: String, val name: String, val descriptionRes: Int)
+
     // Actual ElevenLabs Voice IDs from API
+    // 描述走字符串资源（elevenlabs_voice_*），不在代码里写死某一种语言
     val VOICES = listOf(
-        VoiceOption("", "デフォルト（API設定依存）", "API設定で指定されたデフォルト音声を使用"),
-        VoiceOption("pNInz6obpgDQGcFmaJgB", "Adam", "力強い男性"),
-        VoiceOption("EXAVITQu4vr4xnSDxMaL", "Bella", "明るいプロフェッショナル女性"),
-        VoiceOption("nPczCjzI2devNBz1zQrb", "Brian", "深みのある安心感のある男性"),
-        VoiceOption("IKne3meq5aSn9XLyUdCD", "Charlie", "低めで自信に満ちた男性"),
-        VoiceOption("SOYHLrjzK2X1ezoPC6cr", "Harry", "激しい戦士系男性"),
-        VoiceOption("XrExE9yKIg1WjnnlVkGX", "Matilda", "知識豊富なプロフェッショナル女性"),
-        VoiceOption("cgSgspJ2msm6clMCkdW9", "Jessica", "明るく温かみのある女性"),
-        VoiceOption("cjVigY5qzO86Huf0OWal", "Eric", "滑らかで信頼できる男性"),
-        VoiceOption("EXAVITQu4vr4xnSDxMaL", "Sarah", "成熟した自信に満ちた女性"),
-        VoiceOption("FGY2WhTYpPnrIDTdsKH5", "Laura", "熱心で独特な女性"),
-        VoiceOption("JBFqnCBsd6RMkjVDRZzb", "George", "温かみのある物語り男性"),
-        VoiceOption("CwhRBWXzGAHq8TQ4Fs17", "Roger", "落ち着いたカジュアル男性"),
-        VoiceOption("SAz9YHcvj6GT2YYXdXww", "River", "リラックスした中性"),
-        VoiceOption("bIHbv24MWmeRgasZH58o", "Will", "楽観的でリラックスした男性"),
-        VoiceOption("onwK4e9ZLuTAKqWW03F9", "Daniel", "安定した放送系男性"),
-        VoiceOption("pFZfaz1YfMItY4IjZDke", "Lily", "ベルベットのような女優系"),
-        VoiceOption("pqHfZKP75CvOlQylNhV4", "Bill", "賢明で成熟した男性"),
-        VoiceOption("Xb7hH8MSUJpSbSDYk0k2", "Alice", "明確で教育的な女性"),
-        VoiceOption("TX3AE5NoiEX1lRR4gU5H", "Liam", "エネルギッシュSNSクリエイター"),
-        VoiceOption("N2lVS1w4EtoT3dr4eOWO", "Callum", "ハスキーなトリックスター"),
-        VoiceOption("iP95p4xoKVk53GoZ742B", "Chris", "魅力的で親しみやすい男性")
+        VoiceOption("", "Default", R.string.elevenlabs_voice_default_desc),
+        VoiceOption("pNInz6obpgDQGcFmaJgB", "Adam", R.string.elevenlabs_voice_adam),
+        VoiceOption("EXAVITQu4vr4xnSDxMaL", "Bella", R.string.elevenlabs_voice_bella),
+        VoiceOption("nPczCjzI2devNBz1zQrb", "Brian", R.string.elevenlabs_voice_brian),
+        VoiceOption("IKne3meq5aSn9XLyUdCD", "Charlie", R.string.elevenlabs_voice_charlie),
+        VoiceOption("SOYHLrjzK2X1ezoPC6cr", "Harry", R.string.elevenlabs_voice_harry),
+        VoiceOption("XrExE9yKIg1WjnnlVkGX", "Matilda", R.string.elevenlabs_voice_matilda),
+        VoiceOption("cgSgspJ2msm6clMCkdW9", "Jessica", R.string.elevenlabs_voice_jessica),
+        VoiceOption("cjVigY5qzO86Huf0OWal", "Eric", R.string.elevenlabs_voice_eric),
+        VoiceOption("EXAVITQu4vr4xnSDxMaL", "Sarah", R.string.elevenlabs_voice_sarah),
+        VoiceOption("FGY2WhTYpPnrIDTdsKH5", "Laura", R.string.elevenlabs_voice_laura),
+        VoiceOption("JBFqnCBsd6RMkjVDRZzb", "George", R.string.elevenlabs_voice_george),
+        VoiceOption("CwhRBWXzGAHq8TQ4Fs17", "Roger", R.string.elevenlabs_voice_roger),
+        VoiceOption("SAz9YHcvj6GT2YYXdXww", "River", R.string.elevenlabs_voice_river),
+        VoiceOption("bIHbv24MWmeRgasZH58o", "Will", R.string.elevenlabs_voice_will),
+        VoiceOption("onwK4e9ZLuTAKqWW03F9", "Daniel", R.string.elevenlabs_voice_daniel),
+        VoiceOption("pFZfaz1YfMItY4IjZDke", "Lily", R.string.elevenlabs_voice_lily),
+        VoiceOption("pqHfZKP75CvOlQylNhV4", "Bill", R.string.elevenlabs_voice_bill),
+        VoiceOption("Xb7hH8MSUJpSbSDYk0k2", "Alice", R.string.elevenlabs_voice_alice),
+        VoiceOption("TX3AE5NoiEX1lRR4gU5H", "Liam", R.string.elevenlabs_voice_liam),
+        VoiceOption("N2lVS1w4EtoT3dr4eOWO", "Callum", R.string.elevenlabs_voice_callum),
+        VoiceOption("iP95p4xoKVk53GoZ742B", "Chris", R.string.elevenlabs_voice_chris)
     )
 }
 
@@ -304,6 +305,7 @@ fun SettingsScreen(
 
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+
     val runtime = remember(context.applicationContext) {
         (context.applicationContext as OpenClawApplication).nodeRuntime
     }
@@ -328,6 +330,9 @@ fun SettingsScreen(
     
     // TTS Settings
     var ttsType by rememberSaveable { mutableStateOf(settings.ttsType) }
+    /** 华为 TTS（云端合成）的 AGC apiKey */
+    var ttsHmsApiKey by rememberSaveable { mutableStateOf(settings.ttsHmsApiKey) }
+    var showTtsHmsApiKey by remember { mutableStateOf(false) }
     var showTtsTypeMenu by rememberSaveable { mutableStateOf(false) }
     
     // ElevenLabs
@@ -336,11 +341,6 @@ fun SettingsScreen(
     var elevenLabsSpeed by rememberSaveable { mutableStateOf(settings.elevenLabsSpeed) }
     var showElevenLabsApiKey by rememberSaveable { mutableStateOf(false) }
     
-    // OpenAI
-    var openAiApiKey by rememberSaveable { mutableStateOf(settings.openAiApiKey) }
-    var openAiVoice by rememberSaveable { mutableStateOf(settings.openAiVoice) }
-    var showOpenAiApiKey by rememberSaveable { mutableStateOf(false) }
-
     // OpenAI 兼容 TTS
     var openAiCompatUrl by rememberSaveable { mutableStateOf(settings.openAiCompatUrl) }
     var openAiCompatModel by rememberSaveable { mutableStateOf(settings.openAiCompatModel) }
@@ -545,11 +545,10 @@ fun SettingsScreen(
                                 settings.ttsSpeed = ttsSpeed
                                 settings.ttsEngine = ttsEngine
                                 settings.ttsType = ttsType
+                                settings.ttsHmsApiKey = ttsHmsApiKey.trim()
                                 settings.elevenLabsApiKey = elevenLabsApiKey
                                 settings.elevenLabsVoiceId = elevenLabsVoiceId
                                 settings.elevenLabsSpeed = elevenLabsSpeed
-                                settings.openAiApiKey = openAiApiKey
-                                settings.openAiVoice = openAiVoice
                                 settings.openAiCompatUrl = openAiCompatUrl.trim()
                                 settings.openAiCompatModel = openAiCompatModel.trim()
                                 settings.openAiCompatVoice = openAiCompatVoice.trim()
@@ -1228,9 +1227,9 @@ fun SettingsScreen(
                             val ttsTypeLabel = when (ttsType) {
                                 SettingsRepository.TTS_TYPE_LOCAL -> "System TTS"
                                 SettingsRepository.TTS_TYPE_ELEVENLABS -> "ElevenLabs"
-                                SettingsRepository.TTS_TYPE_OPENAI -> "OpenAI"
                                 SettingsRepository.TTS_TYPE_VOICEVOX -> "VOICEVOX"
                                 SettingsRepository.TTS_TYPE_OPENAI_COMPAT -> stringResource(R.string.tts_provider_openai_compat)
+                                SettingsRepository.TTS_TYPE_HMS -> stringResource(R.string.tts_provider_hms)
                                 else -> stringResource(R.string.tts_provider_local_name)
                             }
                             
@@ -1271,18 +1270,6 @@ fun SettingsScreen(
                                         }
                                     }
                                 )
-                                DropdownMenuItem(
-                                    text = { Text("OpenAI") },
-                                    onClick = {
-                                        ttsType = SettingsRepository.TTS_TYPE_OPENAI
-                                        showTtsTypeMenu = false
-                                    },
-                                    leadingIcon = {
-                                        if (ttsType == SettingsRepository.TTS_TYPE_OPENAI) {
-                                            Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                                        }
-                                    }
-                                )
                                 if (BuildConfig.VOICEVOX_ENABLED) {
                                     DropdownMenuItem(
                                         text = { Text("VOICEVOX") },
@@ -1309,6 +1296,18 @@ fun SettingsScreen(
                                         }
                                     }
                                 )
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.tts_provider_hms)) },
+                                    onClick = {
+                                        ttsType = SettingsRepository.TTS_TYPE_HMS
+                                        showTtsTypeMenu = false
+                                    },
+                                    leadingIcon = {
+                                        if (ttsType == SettingsRepository.TTS_TYPE_HMS) {
+                                            Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                        }
+                                    }
+                                )
                             }
                         }
 
@@ -1327,15 +1326,43 @@ fun SettingsScreen(
                                     onSpeedChange = { elevenLabsSpeed = it }
                                 )
                             }
-                            SettingsRepository.TTS_TYPE_OPENAI -> {
+                            SettingsRepository.TTS_TYPE_HMS -> {
                                 Spacer(modifier = Modifier.height(16.dp))
-                                OpenAISettingsCard(
-                                    apiKey = openAiApiKey,
-                                    onApiKeyChange = { openAiApiKey = it },
-                                    showApiKey = showOpenAiApiKey,
-                                    onShowApiKeyChange = { showOpenAiApiKey = it },
-                                    voice = openAiVoice,
-                                    onVoiceChange = { openAiVoice = it }
+                                Text(
+                                    stringResource(R.string.tts_provider_hms_description),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Text(
+                                    stringResource(R.string.tts_hms_api_key_label),
+                                    style = MaterialTheme.typography.bodyLarge
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                OutlinedTextField(
+                                    value = ttsHmsApiKey,
+                                    onValueChange = { ttsHmsApiKey = it },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    singleLine = true,
+                                    trailingIcon = {
+                                        IconButton(onClick = { showTtsHmsApiKey = !showTtsHmsApiKey }) {
+                                            Icon(
+                                                if (showTtsHmsApiKey) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                                contentDescription = stringResource(
+                                                    if (showTtsHmsApiKey) R.string.action_hide_api_key
+                                                    else R.string.action_show_api_key
+                                                )
+                                            )
+                                        }
+                                    },
+                                    visualTransformation = if (showTtsHmsApiKey) VisualTransformation.None
+                                    else PasswordVisualTransformation()
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    stringResource(R.string.tts_hms_api_key_note),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                             SettingsRepository.TTS_TYPE_VOICEVOX -> {
@@ -2593,13 +2620,12 @@ fun ElevenLabsSettingsCard(
     // Find selected voice name (safely)
     val selectedVoice: ElevenLabsVoiceOptions.VoiceOption = remember(safeVoiceId) {
         ElevenLabsVoiceOptions.VOICES.find { it.id == safeVoiceId } 
-            ?: ElevenLabsVoiceOptions.VOICES.firstOrNull()
-            ?: ElevenLabsVoiceOptions.VoiceOption("", "デフォルト", "")
+            ?: ElevenLabsVoiceOptions.VOICES.first()
     }
     
     // Ensure we have a valid voice name for display
     val selectedVoiceName = selectedVoice.name
-    val selectedVoiceDescription = selectedVoice.description
+    val selectedVoiceDescription = stringResource(selectedVoice.descriptionRes)
     
     Card(
         modifier = modifier.fillMaxWidth(),
@@ -2609,7 +2635,7 @@ fun ElevenLabsSettingsCard(
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                "ElevenLabs Settings",
+                stringResource(R.string.elevenlabs_settings_title),
                 style = MaterialTheme.typography.titleSmall
             )
             Spacer(modifier = Modifier.height(12.dp))
@@ -2714,13 +2740,11 @@ fun ElevenLabsSettingsCard(
                                 text = { 
                                     Column {
                                         Text(voice.name, style = MaterialTheme.typography.bodyMedium)
-                                        if (voice.description.isNotEmpty()) {
-                                            Text(
-                                                voice.description, 
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                        }
+                                        Text(
+                                            stringResource(voice.descriptionRes),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
                                     }
                                 },
                                 onClick = {
@@ -2779,105 +2803,6 @@ fun ElevenLabsSettingsCard(
                 steps = 4, // 0.7, 0.8, 0.9, 1.0, 1.1, 1.2
                 modifier = Modifier.fillMaxWidth()
             )
-        }
-    }
-}
-
-@Composable
-fun OpenAISettingsCard(
-    apiKey: String,
-    onApiKeyChange: (String) -> Unit,
-    voice: String,
-    onVoiceChange: (String) -> Unit,
-    showApiKey: Boolean,
-    onShowApiKeyChange: (Boolean) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val voiceOptions = listOf("alloy", "echo", "fable", "onyx", "nova", "shimmer")
-    var expanded by remember { mutableStateOf(false) }
-    val context = LocalContext.current
-    
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-        )
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                "OpenAI Settings",
-                style = MaterialTheme.typography.titleSmall
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-            
-            OutlinedTextField(
-                value = apiKey,
-                onValueChange = onApiKeyChange,
-                label = { Text("API Key") },
-                trailingIcon = {
-                    IconButton(onClick = { onShowApiKeyChange(!showApiKey) }) {
-                        Icon(
-                            if (showApiKey) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                            contentDescription = stringResource(if (showApiKey) R.string.action_hide_api_key else R.string.action_show_api_key)
-                        )
-                    }
-                },
-                visualTransformation = if (showApiKey) VisualTransformation.None else PasswordVisualTransformation(),
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
-            )
-            
-            // API Key link button
-            TextButton(
-                onClick = {
-                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://platform.openai.com/api-keys"))
-                    context.startActivity(intent)
-                },
-                modifier = Modifier.padding(top = 4.dp)
-            ) {
-                Text(
-                    stringResource(R.string.get_api_key),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-            
-            Spacer(modifier = Modifier.height(8.dp))
-            
-            ExposedDropdownMenuBox(
-                expanded = expanded,
-                onExpandedChange = { expanded = it }
-            ) {
-                OutlinedTextField(
-                    value = voice,
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text("Voice") },
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                    modifier = Modifier.fillMaxWidth().menuAnchor()
-                )
-                
-                ExposedDropdownMenu(
-                    expanded = expanded,
-                    onDismissRequest = { expanded = false }
-                ) {
-                    voiceOptions.forEach { option ->
-                        DropdownMenuItem(
-                            text = { Text(option.replaceFirstChar { it.uppercase() }) },
-                            onClick = {
-                                onVoiceChange(option)
-                                expanded = false
-                            },
-                            leadingIcon = {
-                                if (voice == option) {
-                                    Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                                }
-                            }
-                        )
-                    }
-                }
-            }
         }
     }
 }

@@ -47,4 +47,25 @@ object TTSEngineUtils {
             null
         }
     }
+
+    /** Google 官方的 TTS 引擎包名 */
+    const val GOOGLE_TTS_PACKAGE = "com.google.android.tts"
+
+    fun isInstalled(context: Context, packageName: String): Boolean = runCatching {
+        context.packageManager.getPackageInfo(packageName, 0)
+        true
+    }.getOrDefault(false)
+
+    /**
+     * 实际该用哪个引擎：
+     * 1) 设置里明确选过、并且真装了 → 用它
+     * 2) 否则只要有 Google TTS 就优先 Google（官方的中文最好，也最稳）
+     * 3) 都没有 → null，交给系统默认
+     */
+    fun resolveEngine(context: Context, configured: String): String? {
+        val installed = getAvailableEngines(context).map { it.name }.toSet()
+        if (configured.isNotBlank() && configured in installed) return configured
+        if (GOOGLE_TTS_PACKAGE in installed) return GOOGLE_TTS_PACKAGE
+        return null
+    }
 }

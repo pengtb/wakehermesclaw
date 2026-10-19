@@ -197,6 +197,8 @@ dependencies {
 
     // 华为 HMS ML Kit 语音识别（自带 SDK 的系统识别；需自己申请 AGC API Key，且设备要有 HMS Core）
     implementation("com.huawei.hms:ml-computer-voice-asr:3.12.0.301")
+    // 华为 HMS ML Kit 设备端语音合成（离线；首次使用按发音人下载约 28MB 模型）
+    implementation("com.huawei.hms:ml-computer-voice-tts:3.17.2.300")
 
     // Core Android
     implementation("androidx.core:core-ktx:1.12.0")

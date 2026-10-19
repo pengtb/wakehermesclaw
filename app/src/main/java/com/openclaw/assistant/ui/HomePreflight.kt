@@ -22,13 +22,21 @@ enum class PreflightFix {
     MIC_PERMISSION,
     ASSISTANT_SETTINGS,
     VOICE_SETTINGS,
-    BACKEND_SETTINGS
+    BACKEND_SETTINGS,
+
+    /** 语音服务卡在坏掉的系统绑定上：重启本应用进程（自动自愈也走这条路） */
+    RESTART_APP,
+
+    /** 电池优化白名单：只作为"（可选）"建议，不拦操作 */
+    BATTERY_OPTIMIZATION
 }
 
 /** 一条"还不能开始"的原因 + 一处可点的去处 */
 data class PreflightProblem(
     val message: String,
-    val fix: PreflightFix
+    val fix: PreflightFix,
+    /** true = 建议项，只在提示里出现，不阻止操作 */
+    val optional: Boolean = false
 )
 
 /**
@@ -79,6 +87,23 @@ object HomePreflight {
             )
         }
         return problems
+    }
+
+    /**
+     * 语音链路的"（可选）"建议：电池优化白名单。
+     * 不加入也能用，只是语音服务/唤醒词更容易被系统回收（回收后就是"语音服务和系统断开了"），
+     * 所以只提示、不拦操作。
+     */
+    fun voiceOptionalTips(context: Context): List<PreflightProblem> {
+        val tips = mutableListOf<PreflightProblem>()
+        if (!BatteryOptimization.isWhitelisted(context)) {
+            tips += PreflightProblem(
+                context.getString(R.string.preflight_battery_optional),
+                PreflightFix.BATTERY_OPTIMIZATION,
+                optional = true
+            )
+        }
+        return tips
     }
 
     /** 打开聊天：只需要一个启用的后端（聊天不走桥，也不需要运行时权限） */

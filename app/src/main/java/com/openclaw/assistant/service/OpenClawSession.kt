@@ -16,6 +16,9 @@ import android.widget.FrameLayout
 import android.widget.TextView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -30,6 +33,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -1156,6 +1161,64 @@ enum class AssistantState {
 }
 
 /**
+ * 语音面板里的文本区：内容超高时内部滚动，右侧画一条滑动条。
+ *
+ * Compose 没有内置滚动条，所以按 scrollState 自己算滑块位置和长度：
+ * 内容不超高（maxValue == 0）时整条不显示，行为跟普通 Text 一样。
+ * [followKey] 变化时，如果用户没往上翻，就自动跟到底部——流式输出不会一直停在开头。
+ */
+@Composable
+private fun ScrollableConversationText(
+    scrollState: ScrollState,
+    modifier: Modifier = Modifier,
+    followKey: Any? = null,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    var autoFollow by remember { mutableStateOf(true) }
+
+    LaunchedEffect(scrollState) {
+        snapshotFlow { scrollState.value to scrollState.maxValue }.collect { (value, max) ->
+            autoFollow = max == 0 || value >= max - 24
+        }
+    }
+    LaunchedEffect(followKey) {
+        if (autoFollow && scrollState.maxValue > 0) {
+            scrollState.animateScrollTo(scrollState.maxValue)
+        }
+    }
+
+    BoxWithConstraints(modifier = modifier) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(scrollState),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            content = content
+        )
+
+        val viewportPx = constraints.maxHeight.toFloat()
+        if (scrollState.maxValue > 0 && viewportPx > 0f) {
+            val density = LocalDensity.current
+            val contentPx = viewportPx + scrollState.maxValue
+            val thumbPx = maxOf(
+                viewportPx * viewportPx / contentPx,
+                with(density) { 24.dp.toPx() }
+            )
+            val offsetPx = (viewportPx - thumbPx) * (scrollState.value.toFloat() / scrollState.maxValue)
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .offset(y = with(density) { offsetPx.toDp() })
+                    .width(4.dp)
+                    .height(with(density) { thumbPx.toDp() })
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(Color.Black.copy(alpha = 0.25f))
+            )
+        }
+    }
+}
+
+/**
  * Assistant UI (Compose)
  */
 @Composable
@@ -1291,37 +1354,49 @@ fun AssistantUI(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Recognized text (partial results)
-            if (partialText.isNotBlank() && state == AssistantState.LISTENING) {
-                Text(
-                    text = partialText,
-                    fontSize = 16.sp,
-                    color = Color.Gray,
-                    textAlign = TextAlign.Center
-                )
-            }
+            // 文本区：回复长的时候内部滚动（封顶约半个屏，别把面板撑成全屏），右侧带一条滑动条
+            val textScrollState = rememberScrollState()
+            val maxTextHeight = with(LocalConfiguration.current) { (screenHeightDp * 0.42f).dp }
+            ScrollableConversationText(
+                scrollState = textScrollState,
+                followKey = displayText + "\u0000" + partialText,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f, fill = false)
+                    .heightIn(max = maxTextHeight)
+            ) {
+                // Recognized text (partial results)
+                if (partialText.isNotBlank() && state == AssistantState.LISTENING) {
+                    Text(
+                        text = partialText,
+                        fontSize = 16.sp,
+                        color = Color.Gray,
+                        textAlign = TextAlign.Center
+                    )
+                }
 
-            // User Query (Final Result)
-            if (userQuery.isNotBlank()) {
-                Text(
-                    text = "$userQuery",
-                    fontSize = 16.sp,
-                    color = Color.DarkGray, // Slightly different color
-                    textAlign = TextAlign.Center,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
-                )
-            }
+                // User Query (Final Result)
+                if (userQuery.isNotBlank()) {
+                    Text(
+                        text = "$userQuery",
+                        fontSize = 16.sp,
+                        color = Color.DarkGray, // Slightly different color
+                        textAlign = TextAlign.Center,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+                    )
+                }
 
-            // Main text
-            if (displayText.isNotBlank() && state != AssistantState.LISTENING) {
-                Text(
-                    text = displayText,
-                    fontSize = 18.sp,
-                    color = Color.Black,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(horizontal = 16.dp)
-                )
+                // Main text
+                if (displayText.isNotBlank() && state != AssistantState.LISTENING) {
+                    Text(
+                        text = displayText,
+                        fontSize = 18.sp,
+                        color = Color.Black,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    )
+                }
             }
 
             // 正在听：给一个明确的"结束说话"（面板会盖住主页的按钮，对讲模式只能从这里收尾）

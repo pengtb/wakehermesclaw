@@ -81,23 +81,54 @@ private object SettingsRepositoryHolder {
  * 「本地 TTS 但系统里没有 TTS 引擎」的提示弹窗。
  *
  * 触发点：设置页保存时，TTS 提供商选了「本地」、而系统里 `android.intent.action.TTS_SERVICE`
- * 一个都没查到（`TTSEngineUtils.getAvailableEngines()` 为空）。只说明去哪装、装完回来自动可选，
- * 不做安装跳转、也不记「不再提示」——装好引擎后这条自然不会再出现。
+ * 一个都没查到（`TTSEngineUtils.getAvailableEngines()` 为空）。给两条路：
+ * 装 Google 官方引擎（Play 商店），或装 sherpa-onnx 的离线开源引擎。
  */
 @Composable
 fun TtsEngineHintDialog(visible: MutableState<Boolean>) {
     if (!visible.value) return
+    val context = LocalContext.current
     val message = stringResource(R.string.tts_engine_hint_message)
+    val ossUrl = stringResource(R.string.tts_engine_hint_oss_url)
     val linkColor = MaterialTheme.colorScheme.primary
-    // 正文里的链接要能直接点：按 URL 正则标注成超链接（各语言文案里链接位置不同，不写死下标）
     val body = remember(message, linkColor) { linkifyUrls(message, linkColor) }
+
+    fun open(url: String) {
+        val ok = runCatching {
+            context.startActivity(
+                android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
+                    .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+            )
+            true
+        }.getOrDefault(false)
+        if (ok) visible.value = false
+    }
+
     AlertDialog(
         onDismissRequest = { visible.value = false },
         title = { Text(stringResource(R.string.tts_engine_hint_title)) },
         text = { Text(body) },
         confirmButton = {
-            TextButton(onClick = { visible.value = false }) {
-                Text(stringResource(R.string.tts_engine_hint_ok))
+            // 优先推荐 Google 官方引擎（中文语音包在引擎设置里下载）
+            TextButton(onClick = {
+                val market = "market://details?id=${com.openclaw.assistant.speech.TTSEngineUtils.GOOGLE_TTS_PACKAGE}"
+                val web = "https://play.google.com/store/apps/details?id=${com.openclaw.assistant.speech.TTSEngineUtils.GOOGLE_TTS_PACKAGE}"
+                // 没装商店时会抛 ActivityNotFoundException，这里先试 market，失败再走网页
+                val opened = runCatching {
+                    context.startActivity(
+                        android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(market))
+                            .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                    )
+                    true
+                }.getOrDefault(false)
+                if (opened) visible.value = false else open(web)
+            }) {
+                Text(stringResource(R.string.tts_engine_hint_google))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = { open(ossUrl) }) {
+                Text(stringResource(R.string.tts_engine_hint_oss))
             }
         }
     )

@@ -12,7 +12,7 @@ private const val TAG = "TTSManager"
 
 /**
  * Text-to-Speech Manager with support for multiple providers
- * (Local TTS, ElevenLabs, OpenAI, OpenAI-compatible, VOICEVOX)
+ * (Local TTS, ElevenLabs, OpenAI-compatible, HMS, VOICEVOX)
  */
 class TTSManager(private val context: Context) {
     
@@ -25,8 +25,8 @@ class TTSManager(private val context: Context) {
         // Initialize all providers
         providers[TTSProviderType.LOCAL] = AndroidTTSProvider(context)
         providers[TTSProviderType.ELEVENLABS] = ElevenLabsProvider(context)
-        providers[TTSProviderType.OPENAI] = OpenAIProvider(context)
         providers[TTSProviderType.OPENAI_COMPAT] = OpenAiCompatProvider(context)
+        providers[TTSProviderType.HMS] = HmsTtsProvider(context)
         if (BuildConfig.FLAVOR == "full") {
             providers[TTSProviderType.VOICEVOX] = VoiceVoxProvider(context)
         }
@@ -148,8 +148,8 @@ class TTSManager(private val context: Context) {
         shutdown()
         providers[TTSProviderType.LOCAL] = AndroidTTSProvider(context)
         providers[TTSProviderType.ELEVENLABS] = ElevenLabsProvider(context)
-        providers[TTSProviderType.OPENAI] = OpenAIProvider(context)
         providers[TTSProviderType.OPENAI_COMPAT] = OpenAiCompatProvider(context)
+        providers[TTSProviderType.HMS] = HmsTtsProvider(context)
         if (BuildConfig.FLAVOR == "full") {
             providers[TTSProviderType.VOICEVOX] = VoiceVoxProvider(context)
         }
@@ -188,18 +188,18 @@ class TTSManager(private val context: Context) {
                 isConfigured = settings.elevenLabsApiKey.isNotBlank()
             ),
             TTSProviderInfo(
-                type = TTSProviderType.OPENAI,
-                displayName = "OpenAI",
-                description = "OpenAI TTS API",
-                isAvailable = true,
-                isConfigured = settings.openAiApiKey.isNotBlank()
-            ),
-            TTSProviderInfo(
                 type = TTSProviderType.OPENAI_COMPAT,
                 displayName = context.getString(R.string.tts_provider_openai_compat),
                 description = context.getString(R.string.tts_provider_openai_compat_description),
                 isAvailable = true,
                 isConfigured = settings.openAiCompatUrl.isNotBlank()
+            ),
+            TTSProviderInfo(
+                type = TTSProviderType.HMS,
+                displayName = context.getString(R.string.tts_provider_hms),
+                description = context.getString(R.string.tts_provider_hms_description),
+                isAvailable = providers[TTSProviderType.HMS]?.isAvailable() == true,
+                isConfigured = providers[TTSProviderType.HMS]?.isConfigured() == true
             ),
             TTSProviderInfo(
                 type = TTSProviderType.VOICEVOX,

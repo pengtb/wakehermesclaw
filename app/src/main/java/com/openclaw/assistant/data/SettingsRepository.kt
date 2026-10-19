@@ -58,6 +58,16 @@ class SettingsRepository(context: Context) {
         get() = prefs.getBoolean(KEY_HOTWORD_ENABLED, false)
         set(value) = prefs.edit().putBoolean(KEY_HOTWORD_ENABLED, value).apply()
 
+    /** 「把本应用加入电池优化白名单」这条（可选）建议只提示一次，别每次点语音都弹 */
+    var batteryTipShown: Boolean
+        get() = prefs.getBoolean(KEY_BATTERY_TIP_SHOWN, false)
+        set(value) = prefs.edit().putBoolean(KEY_BATTERY_TIP_SHOWN, value).apply()
+
+    /** 上次为了修复语音绑定而自愈重启进程的时间（毫秒），用来做冷却，避免反复杀进程 */
+    var voiceRestartAt: Long
+        get() = prefs.getLong(KEY_VOICE_RESTART_AT, 0L)
+        set(value) = prefs.edit().putLong(KEY_VOICE_RESTART_AT, value).apply()
+
     // Wake word selection (preset or custom)
     var wakeWordPreset: String
         get() = prefs.getString(KEY_WAKE_WORD_PRESET, WAKE_WORD_OPEN_CLAW) ?: WAKE_WORD_OPEN_CLAW
@@ -199,9 +209,12 @@ class SettingsRepository(context: Context) {
         get() = prefs.getString(KEY_TTS_ENGINE, "") ?: ""
         set(value) = prefs.edit().putString(KEY_TTS_ENGINE, value).apply()
     
-    // TTS Type (local, elevenlabs, openai, voicevox)
+    // TTS Type (local, elevenlabs, voicevox, openai_compat, hms_tts)
+    // 老版本存过 "openai"（内置的独立 OpenAI 选项，已删除）：统一按 openai_compat 处理，
+    // 避免 getCurrentProvider() 拿到空 provider 导致"语音合成失败"。
     var ttsType: String
-        get() = prefs.getString(KEY_TTS_TYPE, TTS_TYPE_LOCAL) ?: TTS_TYPE_LOCAL
+        get() = (prefs.getString(KEY_TTS_TYPE, TTS_TYPE_LOCAL) ?: TTS_TYPE_LOCAL)
+            .let { if (it == LEGACY_TTS_TYPE_OPENAI) TTS_TYPE_OPENAI_COMPAT else it }
         set(value) = prefs.edit().putString(KEY_TTS_TYPE, value).apply()
     
     // ElevenLabs settings
@@ -221,22 +234,10 @@ class SettingsRepository(context: Context) {
         get() = prefs.getFloat(KEY_ELEVENLABS_SPEED, 1.0f)
         set(value) = prefs.edit().putFloat(KEY_ELEVENLABS_SPEED, value.coerceIn(0.7f, 1.2f)).apply()
     
-    // OpenAI settings
-    var openAiApiKey: String
-        get() = prefs.getString(KEY_OPENAI_API_KEY, "") ?: ""
-        set(value) = prefs.edit().putString(KEY_OPENAI_API_KEY, value).apply()
-    
-    var openAiVoice: String
-        get() = prefs.getString(KEY_OPENAI_VOICE, DEFAULT_OPENAI_VOICE) ?: DEFAULT_OPENAI_VOICE
-        set(value) = prefs.edit().putString(KEY_OPENAI_VOICE, value).apply()
-    
-    var openAiModel: String
-        get() = prefs.getString(KEY_OPENAI_MODEL, DEFAULT_OPENAI_MODEL) ?: DEFAULT_OPENAI_MODEL
-        set(value) = prefs.edit().putString(KEY_OPENAI_MODEL, value).apply()
-
-    // OpenAI 兼容 TTS（自建/本地服务：POST {baseUrl}/v1/audio/speech）
+    // OpenAI 兼容 TTS（POST {baseUrl}/v1/audio/speech）。默认指向 OpenAI 官方，
+    // 也可以换成 aihubmix 这类聚合网关，或本机自建的 Qwen3-TTS / Kokoro。
     var openAiCompatUrl: String
-        get() = prefs.getString(KEY_OPENAI_COMPAT_URL, "") ?: ""
+        get() = (prefs.getString(KEY_OPENAI_COMPAT_URL, "") ?: "").ifBlank { DEFAULT_OPENAI_COMPAT_URL }
         set(value) = prefs.edit().putString(KEY_OPENAI_COMPAT_URL, value).apply()
 
     var openAiCompatModel: String
@@ -299,6 +300,17 @@ class SettingsRepository(context: Context) {
     var asrLanguage: String
         get() = prefs.getString(KEY_ASR_LANGUAGE, "zh") ?: "zh"
         set(value) = prefs.edit().putString(KEY_ASR_LANGUAGE, value).apply()
+
+    /** 华为语音合成的 AGC apiKey（云端合成要用）。
+     *  debug 包默认用构建时带进来的那个（local.properties 的 hms.asr.key），
+     *  正式包默认空 —— 要用户自己到 AGC 申请后填进来。 */
+    var ttsHmsApiKey: String
+        get() = (prefs.getString(KEY_TTS_HMS_API_KEY, "") ?: "").ifBlank { defaultTtsHmsApiKey() }
+        set(value) = prefs.edit().putString(KEY_TTS_HMS_API_KEY, value).apply()
+
+    private fun defaultTtsHmsApiKey(): String =
+        if (com.openclaw.assistant.BuildConfig.DEBUG) com.openclaw.assistant.BuildConfig.HMS_ASR_KEY.trim()
+        else ""
 
     /** FunASR 实时 WebSocket 服务地址 */
     var asrFunAsrUrl: String
@@ -448,6 +460,8 @@ class SettingsRepository(context: Context) {
         private const val KEY_AUTH_TOKEN = "auth_token"
         private const val KEY_SESSION_ID = "session_id"
         private const val KEY_HOTWORD_ENABLED = "hotword_enabled"
+        private const val KEY_BATTERY_TIP_SHOWN = "battery_tip_shown"
+        private const val KEY_VOICE_RESTART_AT = "voice_restart_at"
         private const val KEY_WAKE_WORD_PRESET = "wake_word_preset"
         private const val KEY_CUSTOM_WAKE_WORD = "custom_wake_word"
         private const val KEY_OPENCLAW_WAKE_WORD = "openclaw_wake_word"
@@ -480,6 +494,7 @@ class SettingsRepository(context: Context) {
         private const val KEY_ASR_OPENAI_MODEL = "asr_openai_model"
         private const val KEY_ASR_LANGUAGE = "asr_language"
         private const val KEY_ASR_FUNASR_URL = "asr_funasr_url"
+        private const val KEY_TTS_HMS_API_KEY = "tts_hms_api_key"
         private const val KEY_ASR_HMS_API_KEY = "asr_hms_api_key"
         private const val KEY_ASR_END_SILENCE_MS = "asr_end_silence_ms"
         private const val KEY_ASR_SILENCE_THRESHOLD_DB = "asr_silence_threshold_db"
@@ -493,9 +508,6 @@ class SettingsRepository(context: Context) {
         private const val KEY_ELEVENLABS_VOICE_ID = "elevenlabs_voice_id"
         private const val KEY_ELEVENLABS_MODEL = "elevenlabs_model"
         private const val KEY_ELEVENLABS_SPEED = "elevenlabs_speed"
-        private const val KEY_OPENAI_API_KEY = "openai_api_key"
-        private const val KEY_OPENAI_VOICE = "openai_voice"
-        private const val KEY_OPENAI_MODEL = "openai_model"
         private const val KEY_OPENAI_COMPAT_URL = "openai_compat_url"
         private const val KEY_OPENAI_COMPAT_MODEL = "openai_compat_model"
         private const val KEY_OPENAI_COMPAT_VOICE = "openai_compat_voice"
@@ -528,19 +540,20 @@ class SettingsRepository(context: Context) {
         // TTS Type constants
         const val TTS_TYPE_LOCAL = "local"
         const val TTS_TYPE_ELEVENLABS = "elevenlabs"
-        const val TTS_TYPE_OPENAI = "openai"
         const val TTS_TYPE_VOICEVOX = "voicevox"
         const val TTS_TYPE_OPENAI_COMPAT = "openai_compat"
-        
+        /** 华为 HMS ML Kit 设备端语音合成 */
+        const val TTS_TYPE_HMS = "hms_tts"
+        /** 已删除的旧「OpenAI」独立选项，只用于读取老配置时迁移 */
+        private const val LEGACY_TTS_TYPE_OPENAI = "openai"
+
         // Default ElevenLabs voice ID (empty - user must set)
         const val DEFAULT_ELEVENLABS_VOICE_ID = ""
         const val DEFAULT_ELEVENLABS_MODEL = "eleven_multilingual_v2"
-        
-        // Default OpenAI voice
-        const val DEFAULT_OPENAI_VOICE = "coral"
-        const val DEFAULT_OPENAI_MODEL = "gpt-4o-mini-tts"
 
-        // Default Rig Qwen TTS (Windows GPU box, Qwen3-TTS CustomVoice)
+
+        // Default OpenAI 兼容 TTS（官方；可改成自建服务或第三方网关）
+        const val DEFAULT_OPENAI_COMPAT_URL = "https://api.openai.com/v1"
         const val DEFAULT_OPENAI_COMPAT_MODEL = "tts-1"
         const val DEFAULT_OPENAI_COMPAT_VOICE = "alloy"
         

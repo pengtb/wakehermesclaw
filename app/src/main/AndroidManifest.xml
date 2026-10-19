@@ -222,6 +222,28 @@
             </intent-filter>
         </service>
 
+        <!-- 状态栏快捷开关：点一下打开语音对话。
+             BIND_QUICK_SETTINGS_TILE 是系统绑定所必需的权限；label 官方限制 18 字符。 -->
+        <service
+            android:name="com.openclaw.assistant.service.VoiceTileService"
+            android:exported="true"
+            android:label="@string/qs_tile_label"
+            android:icon="@drawable/ic_qs_voice"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+
+        <!-- 磁贴的"跳板"：无界面，只负责让系统收起通知栏面板并触发语音会话 -->
+        <activity
+            android:name="com.openclaw.assistant.VoiceLaunchActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.NoDisplay" />
+
         <!-- Session Foreground Service (prevents process freeze during conversation) -->
         <service
             android:name="com.openclaw.assistant.service.SessionForegroundService"

@@ -35,16 +35,17 @@ class AndroidTTSProvider(private val context: Context) : TTSProvider {
     }
     
     private fun initialize() {
-        val preferredEngine = settings.ttsEngine
-        
-        if (preferredEngine.isNotEmpty()) {
-            Log.d(TAG, "Initializing with preferred engine: $preferredEngine")
+        // 设置里显式选过就用它；没选（或选的那个已经不在）时优先 Google TTS，再退回系统默认
+        val preferredEngine = TTSEngineUtils.resolveEngine(context, settings.ttsEngine)
+
+        if (preferredEngine != null) {
+            Log.d(TAG, "Initializing with engine: $preferredEngine")
             tts = TextToSpeech(context.applicationContext, { status ->
                 if (status == TextToSpeech.SUCCESS) {
-                    Log.d(TAG, "Initialized with preferred engine")
+                    Log.d(TAG, "Initialized with engine $preferredEngine")
                     onInitSuccess()
                 } else {
-                    Log.w(TAG, "Preferred engine failed, falling back to default")
+                    Log.w(TAG, "Engine $preferredEngine failed, falling back to default")
                     tryDefaultEngine()
                 }
             }, preferredEngine)
