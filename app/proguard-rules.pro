@@ -67,3 +67,13 @@
 -keep class com.openclaw.assistant.speech.OpenAIProvider { *; }
 -keep class com.openclaw.assistant.speech.OpenAIProvider$* { *; }
 -keep class com.openclaw.assistant.speech.AndroidTTSProvider { *; }
+
+# Huawei HMS (ML Kit 语音识别/合成 + Network Kit)
+# SDK 里引用了一些只在华为 ROM 上存在的类（com.huawei.libcore.*、chromium cronet），
+# 非华为设备上这些类不存在，R8 会把它们当致命缺失；这里显式放过。
+-dontwarn com.huawei.**
+-dontwarn org.chromium.net.**
+-keep class com.huawei.hms.mlsdk.** { *; }
+-keep class com.huawei.hms.network.** { *; }
+-keep class com.huawei.hmf.tasks.** { *; }
+-keep class com.huawei.agconnect.** { *; }

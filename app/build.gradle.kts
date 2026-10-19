@@ -121,7 +121,10 @@ android {
         }
         release {
             isMinifyEnabled = true
-            buildConfigField("boolean", "FIREBASE_ENABLED", "true")
+            // 和 debug 一样认环境变量：没有真实 google-services.json 时用 FIREBASE_ENABLED=false 出包，
+            // 避免拿着 mock 配置去初始化 Firebase。
+            val firebaseEnabled = System.getenv("FIREBASE_ENABLED")?.toBooleanStrictOrNull() ?: true
+            buildConfigField("boolean", "FIREBASE_ENABLED", firebaseEnabled.toString())
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
