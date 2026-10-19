@@ -51,7 +51,8 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
             _uiState.value = TerminalUiState(
                 connected = false,
                 connecting = false,
-                message = "Run `hermes dashboard --tui`, then scan an `agentvoice-pair` QR that includes Terminal.",
+                message = getApplication<Application>()
+                    .getString(com.openclaw.assistant.R.string.terminal_dashboard_off, "no endpoint"),
             )
             return
         }
@@ -106,8 +107,24 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
 
         override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
             socket = null
-            val status = response?.code?.let { "HTTP $it: " }.orEmpty()
-            _uiState.value = TerminalUiState(message = status + (t.message ?: t.javaClass.simpleName))
+            val code = response?.code
+            val detail = when {
+                code != null -> "HTTP $code"
+                t.message != null -> t.message!!
+                else -> t.javaClass.simpleName
+            }
+            // 502/503/504 是反向代理（Tailscale serve / 网关）找不到本地 dashboard 时的典型返回；
+            // 连接被拒/超时/域名解析失败同理。这些情况给一句人话，而不是甩一个错误码。
+            val dashboardLikelyDown = (code != null && code in 502..504) ||
+                t is java.net.ConnectException ||
+                t is java.net.SocketTimeoutException ||
+                t is java.net.UnknownHostException
+            val app = getApplication<Application>()
+            _uiState.value = TerminalUiState(
+                message = if (dashboardLikelyDown)
+                    app.getString(com.openclaw.assistant.R.string.terminal_dashboard_off, detail)
+                else detail
+            )
         }
 
         override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {

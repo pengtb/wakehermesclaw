@@ -131,6 +131,12 @@ private fun MobileBridgeSettingsContent(
             )
 
             SettingsCard(title = stringResource(R.string.av_bridge_connection_section), icon = Icons.Default.Link) {
+                Text(
+                    stringResource(R.string.bridge_http_only_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(12.dp))
                 OutlinedTextField(
                     value = portText,
                     onValueChange = {

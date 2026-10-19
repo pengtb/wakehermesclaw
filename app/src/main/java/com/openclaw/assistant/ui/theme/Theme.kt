@@ -27,6 +27,26 @@ private val OpenClawColorScheme = darkColorScheme(
     error = OpenClawError
 )
 
+/**
+ * 浅色版：同样是 OpenClaw 的橙/黄，只是底色翻成浅的。
+ * 系统是浅色时用它，深色时仍用上面那套（和以前完全一样）。
+ */
+private val OpenClawLightColorScheme = lightColorScheme(
+    primary = OpenClawOrange,
+    secondary = OpenClawPopYellow,
+    tertiary = OpenClawOrange,
+    background = Color(0xFFF6F6F7),
+    surface = Color.White,
+    onPrimary = Color.White,
+    onSecondary = Color(0xFF1B1B1F),
+    onTertiary = Color.White,
+    onBackground = Color(0xFF1B1B1F),
+    onSurface = Color(0xFF1B1B1F),
+    surfaceVariant = Color(0xFFEBEBEE),
+    onSurfaceVariant = Color(0xFF5B5B62),
+    error = OpenClawError
+)
+
 // Manrope TTF not bundled — use system sans-serif to avoid FontNotFoundException
 val Manrope = FontFamily.SansSerif
 
@@ -47,11 +67,12 @@ private val AppTypography = Typography(
 
 @Composable
 fun OpenClawAssistantTheme(
+    darkTheme: Boolean = androidx.compose.foundation.isSystemInDarkTheme(),
     content: @Composable () -> Unit
 ) {
-    // Always use the OpenClaw dark scheme
-    val colorScheme = OpenClawColorScheme
-    
+    // 跟随系统深浅色：深色用原来的品牌深色方案，浅色用同色系的浅色方案
+    val colorScheme = if (darkTheme) OpenClawColorScheme else OpenClawLightColorScheme
+
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
@@ -59,7 +80,7 @@ fun OpenClawAssistantTheme(
             if (context is Activity) {
                 val window = context.window
                 window.statusBarColor = colorScheme.background.toArgb()
-                WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = false
+                WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
             }
         }
     }

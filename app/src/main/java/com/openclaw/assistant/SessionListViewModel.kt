@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.openclaw.assistant.data.local.entity.SessionEntity
 import com.openclaw.assistant.data.repository.ChatRepository
 import com.openclaw.assistant.data.SettingsRepository
+import com.openclaw.assistant.data.SessionProductStore
 import com.openclaw.assistant.backend.BackendRepository
 import com.openclaw.assistant.backend.BackendType
 import com.openclaw.assistant.gateway.AgentInfo
@@ -29,10 +30,12 @@ enum class ChatProduct { OPENCLAW, HERMES }
 
 class SessionListViewModel(application: Application) : AndroidViewModel(application) {
 
+    /** AndroidViewModel 的 application 是私有的，这里留一份给 SessionProductStore 用 */
+    private val appContext: android.content.Context = application.applicationContext
+
     private val chatRepository = ChatRepository.getInstance(application)
     private val settingsRepository = SettingsRepository.getInstance(application)
     private val backendRepository = BackendRepository.getInstance(application)
-    private val prefs = application.getSharedPreferences("chat_session_products", android.content.Context.MODE_PRIVATE)
     private val nodeRuntime = (application as OpenClawApplication).nodeRuntime
 
     val isGatewayConfigured: Boolean
@@ -65,7 +68,8 @@ class SessionListViewModel(application: Application) : AndroidViewModel(applicat
                 title = session.title,
                 createdAt = session.latestMessageTime ?: session.createdAt,
                 isGateway = false,
-                product = loadProduct(session.id) ?: if (hasHermes && !hasOpenClawHttp) ChatProduct.HERMES else ChatProduct.OPENCLAW,
+                product = SessionProductStore.load(appContext, session.id)
+                    ?: if (hasHermes && !hasOpenClawHttp) ChatProduct.HERMES else ChatProduct.OPENCLAW,
             )
         }
         
@@ -125,7 +129,7 @@ class SessionListViewModel(application: Application) : AndroidViewModel(applicat
         } else {
             viewModelScope.launch {
                 chatRepository.deleteSession(sessionId)
-                prefs.edit().remove(sessionId).apply()
+                SessionProductStore.remove(appContext, sessionId)
             }
         }
     }
@@ -140,9 +144,9 @@ class SessionListViewModel(application: Application) : AndroidViewModel(applicat
     }
 
     private fun saveProduct(sessionId: String, product: ChatProduct) {
-        prefs.edit().putString(sessionId, product.name).apply()
+        SessionProductStore.save(appContext, sessionId, product)
     }
 
     private fun loadProduct(sessionId: String): ChatProduct? =
-        prefs.getString(sessionId, null)?.let { runCatching { ChatProduct.valueOf(it) }.getOrNull() }
+        SessionProductStore.load(appContext, sessionId)
 }

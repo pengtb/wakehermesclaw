@@ -61,7 +61,7 @@ class BackendListActivity : LocaleAwareActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            MaterialTheme {
+            com.openclaw.assistant.ui.theme.OpenClawAssistantTheme {
                 BackendListScreen(
                     onAdd = { startActivity(BackendEditorActivity.intent(this, null)) },
                     onEdit = { id -> startActivity(BackendEditorActivity.intent(this, id)) },

@@ -159,6 +159,16 @@ class HermesApiServerClient(
         buildJsonObject {
             put("model", modelName)
             put("input", runsInput(messages))
+            // Runs API 不看 messages 里的 system 角色，它读的是 instructions（服务端拿它当
+            // 本轮的 ephemeral system prompt）。语音那条"回答要短"的提示必须放这儿，
+            // 否则会被整条丢掉——这就是之前"加了提示但回答没变短"的原因。
+            val systemPrompt = messages
+                .filter { it.role.equals("system", ignoreCase = true) }
+                .joinToString("\n\n") { it.content }
+                .trim()
+            if (systemPrompt.isNotEmpty()) {
+                put("instructions", systemPrompt)
+            }
             put("messages", buildJsonArray {
                 messages.forEach { m ->
                     add(buildJsonObject {

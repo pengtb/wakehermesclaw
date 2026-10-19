@@ -1,6 +1,7 @@
 package com.openclaw.assistant.data
 
 import android.content.Context
+import com.openclaw.assistant.R
 import android.content.SharedPreferences
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
@@ -10,6 +11,7 @@ import java.util.UUID
  * Secure settings storage
  */
 class SettingsRepository(context: Context) {
+    private val appContext = context.applicationContext
     data class WakeWordTarget(
         val phrase: String,
         val target: String,
@@ -62,6 +64,36 @@ class SettingsRepository(context: Context) {
     var batteryTipShown: Boolean
         get() = prefs.getBoolean(KEY_BATTERY_TIP_SHOWN, false)
         set(value) = prefs.edit().putBoolean(KEY_BATTERY_TIP_SHOWN, value).apply()
+
+    /**
+     * 语音对话的退出词（逗号 / 换行分隔）。说中其中任意一个就结束当前对话。
+     * 存的是原始文本，空串 = 用默认值，方便以后调整默认词还能生效。
+     */
+    var exitPhrasesRaw: String
+        get() = prefs.getString(KEY_EXIT_PHRASES, "") ?: ""
+        set(value) = prefs.edit().putString(KEY_EXIT_PHRASES, value).apply()
+
+    /** 实际生效的退出词：没自定义就用**当前界面语言**对应的默认词 */
+    val exitPhrases: List<String>
+        get() = com.openclaw.assistant.speech.ExitPhrases
+            .parse(exitPhrasesRaw.ifBlank { defaultExitPhrases() })
+
+    /** 默认退出词按语言走（各语言 strings.xml 里的 exit_phrases_default） */
+    fun defaultExitPhrases(): String = runCatching {
+        appContext.getString(R.string.exit_phrases_default)
+    }.getOrDefault("exit,quit")
+
+    /**
+     * 语音会话 / 文字聊天各自的自定义系统提示词。
+     * 留空 = 用 [com.openclaw.assistant.backend.PromptDefaults] 里的内置默认值。
+     */
+    var voicePrompt: String
+        get() = prefs.getString(KEY_VOICE_PROMPT, "") ?: ""
+        set(value) = prefs.edit().putString(KEY_VOICE_PROMPT, value).apply()
+
+    var chatPrompt: String
+        get() = prefs.getString(KEY_CHAT_PROMPT, "") ?: ""
+        set(value) = prefs.edit().putString(KEY_CHAT_PROMPT, value).apply()
 
     /** 上次为了修复语音绑定而自愈重启进程的时间（毫秒），用来做冷却，避免反复杀进程 */
     var voiceRestartAt: Long
@@ -406,8 +438,28 @@ class SettingsRepository(context: Context) {
     // Connection type used by the voice session (wakeword / long-press home)
     // Defaults to the same as connectionType so existing setups behave identically
     var wakewordConnectionType: String
-        get() = prefs.getString(KEY_WAKEWORD_CONNECTION_TYPE, connectionType) ?: connectionType
+        get() = prefs.getString(KEY_WAKEWORD_CONNECTION_TYPE, null)
+            ?: defaultVoiceConnectionType()
         set(value) = prefs.edit().putString(KEY_WAKEWORD_CONNECTION_TYPE, value).apply()
+
+    /**
+     * 没手动选过时，语音该走哪条路由**主后端**决定：
+     * 主后端是 OpenClaw 网关 → 网关；是 Hermes / OpenClaw API → HTTP。
+     * 一个后端都没有时维持旧默认（网关），此时反正也发不出去，前置检查会拦。
+     */
+    private fun defaultVoiceConnectionType(): String {
+        val primary = runCatching {
+            com.openclaw.assistant.backend.BackendRepository
+                .getInstance(appContext).primary
+        }.getOrNull() ?: return connectionType
+        return when (primary.type) {
+            com.openclaw.assistant.backend.BackendType.OPENCLAW_GATEWAY -> CONNECTION_TYPE_GATEWAY
+            // 主后端是 OpenClaw 的 HTTP 通道时，语音默认也走它（而不是 Hermes HTTP）
+            com.openclaw.assistant.backend.BackendType.OPENCLAW_HTTP -> CONNECTION_TYPE_OPENCLAW_HTTP
+            com.openclaw.assistant.backend.BackendType.HERMES_API_SERVER -> CONNECTION_TYPE_HTTP
+            else -> connectionType
+        }
+    }
 
     /**
      * Get the chat completions URL.
@@ -462,6 +514,9 @@ class SettingsRepository(context: Context) {
         private const val KEY_HOTWORD_ENABLED = "hotword_enabled"
         private const val KEY_BATTERY_TIP_SHOWN = "battery_tip_shown"
         private const val KEY_VOICE_RESTART_AT = "voice_restart_at"
+        private const val KEY_EXIT_PHRASES = "exit_phrases"
+        private const val KEY_VOICE_PROMPT = "voice_prompt"
+        private const val KEY_CHAT_PROMPT = "chat_prompt"
         private const val KEY_WAKE_WORD_PRESET = "wake_word_preset"
         private const val KEY_CUSTOM_WAKE_WORD = "custom_wake_word"
         private const val KEY_OPENCLAW_WAKE_WORD = "openclaw_wake_word"
@@ -534,6 +589,8 @@ class SettingsRepository(context: Context) {
         
         const val CONNECTION_TYPE_GATEWAY = "gateway"
         const val CONNECTION_TYPE_HTTP = "http"
+        /** 第三条：OpenClaw 自己的 HTTP（OpenAI 兼容）通道，不需要网关长连接 */
+        const val CONNECTION_TYPE_OPENCLAW_HTTP = "openclaw_http"
         
         const val GOOGLE_TTS_PACKAGE = "com.google.android.tts"
         

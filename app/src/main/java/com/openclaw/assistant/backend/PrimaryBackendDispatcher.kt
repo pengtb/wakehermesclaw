@@ -18,6 +18,7 @@ import kotlinx.coroutines.withTimeout
 object PrimaryBackendDispatcher {
     data class Reply(val text: String, val sourceDisplayName: String)
 
+
     /**
      * Sends to the selected enabled backend. If [backendId] is null, the
      * persisted Primary is used. Returns null only when there is no configured
@@ -30,6 +31,8 @@ object PrimaryBackendDispatcher {
         backendId: String? = null,
         sessionId: String? = null,
         agentId: String? = null,
+        /** true = 语音链路：会在最前面加一条"回答要短、会被念出来"的系统提示 */
+        voiceMode: Boolean = false,
     ): Reply? {
         val manager = BackendManager.getInstance(context)
         val backends = manager.backends.first()
@@ -40,7 +43,7 @@ object PrimaryBackendDispatcher {
         } ?: return null
         return when (target.type) {
             BackendType.HERMES_API_SERVER,
-            BackendType.OPENCLAW_HTTP -> sendViaAgentClient(context, target, userText, sessionId, agentId)
+            BackendType.OPENCLAW_HTTP -> sendViaAgentClient(context, target, userText, sessionId, agentId, voiceMode)
             BackendType.OPENCLAW_GATEWAY -> sendViaGateway(context, target, userText)
         }
     }
@@ -50,7 +53,10 @@ object PrimaryBackendDispatcher {
         userText: String,
         sessionId: String? = null,
         agentId: String? = null,
-    ): Reply? = send(context, userText, backendId = null, sessionId = sessionId, agentId = agentId)
+        voiceMode: Boolean = false,
+    ): Reply? = send(
+        context, userText, backendId = null, sessionId = sessionId, agentId = agentId, voiceMode = voiceMode
+    )
 
     /**
      * Backwards-compatible alias retained for older call sites during the
@@ -67,13 +73,29 @@ object PrimaryBackendDispatcher {
         userText: String,
         sessionId: String?,
         agentId: String?,
+        voiceMode: Boolean,
     ): Reply {
         val client = AgentClientFactory.create(target)
         val collected = StringBuilder()
         val run = AgentDiagnostics.beginMessage(context, target, userText.length)
         try {
             client.sendMessage(
-                messages = listOf(AgentMessage.user(userText)),
+                messages = run {
+                    // 语音：语音提示词 + 现场读到的环境；文字聊天：文字提示词。
+                    // 两者都能在「设置 → 聊天 → 提示词」里改，留空则用内置默认值。
+                    val base = if (voiceMode) PromptDefaults.voice(context) else PromptDefaults.chat(context)
+                    val prompt = if (voiceMode) {
+                        val env = VoiceContext.snapshot(context)
+                        if (env.isBlank()) base else base + "\n\n" + env
+                    } else {
+                        base
+                    }
+                    if (prompt.isBlank()) {
+                        listOf(AgentMessage.user(userText))
+                    } else {
+                        listOf(AgentMessage.system(prompt), AgentMessage.user(userText))
+                    }
+                },
                 options = AgentSendOptions(
                     sessionId = sessionId,
                     stream = target.useStreaming,

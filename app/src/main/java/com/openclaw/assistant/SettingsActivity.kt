@@ -274,6 +274,8 @@ fun SettingsScreen(
     var resumeLatestSession by rememberSaveable { mutableStateOf(settings.resumeLatestSession) }
     var openClawWakeWord by rememberSaveable { mutableStateOf(settings.openClawWakeWord) }
     var hermesWakeWord by rememberSaveable { mutableStateOf(settings.hermesWakeWord) }
+    // 退出词：逗号或换行分隔；留空 = 用默认值
+    var exitPhrasesText by rememberSaveable { mutableStateOf(settings.exitPhrasesRaw) }
     var openClawWakeSound by rememberSaveable { mutableStateOf(settings.openClawWakeSound) }
     var hermesWakeSound by rememberSaveable { mutableStateOf(settings.hermesWakeSound) }
     var wakeWordSensitivity by rememberSaveable { mutableStateOf(settings.wakeWordSensitivity) }
@@ -297,6 +299,13 @@ fun SettingsScreen(
     var ttsBargeInEnabled by rememberSaveable { mutableStateOf(settings.ttsBargeInEnabled) }
     var wakeWordDebugEnabled by rememberSaveable { mutableStateOf(settings.wakeWordDebugEnabled) }
     var mediaButtonEnabled by rememberSaveable { mutableStateOf(settings.mediaButtonEnabled) }
+    // 提示词草稿：没自定义过就预填内置默认值，用户直接在上面改
+    var voicePromptDraft by rememberSaveable {
+        mutableStateOf(settings.voicePrompt.ifBlank { com.openclaw.assistant.backend.PromptDefaults.VOICE })
+    }
+    var chatPromptDraft by rememberSaveable {
+        mutableStateOf(settings.chatPrompt.ifBlank { com.openclaw.assistant.backend.PromptDefaults.CHAT })
+    }
 
     var showAuthToken by rememberSaveable { mutableStateOf(false) }
     var showLanguageMenu by rememberSaveable { mutableStateOf(false) }
@@ -565,6 +574,7 @@ fun SettingsScreen(
                                 settings.resumeLatestSession = resumeLatestSession
                                 settings.openClawWakeWord = openClawWakeWord
                                 settings.hermesWakeWord = hermesWakeWord
+                                settings.exitPhrasesRaw = exitPhrasesText
                                 settings.openClawWakeSound = openClawWakeSound
                                 settings.hermesWakeSound = hermesWakeSound
                                 settings.wakeWordSensitivity = wakeWordSensitivity
@@ -585,6 +595,13 @@ fun SettingsScreen(
                                 settings.ttsBargeInEnabled = ttsBargeInEnabled
                                 settings.wakeWordDebugEnabled = wakeWordDebugEnabled
                                 settings.mediaButtonEnabled = mediaButtonEnabled
+                                // 和默认值一样就存空串，这样以后内置默认值更新还能生效
+                                settings.voicePrompt = voicePromptDraft.trim().let {
+                                    if (it == com.openclaw.assistant.backend.PromptDefaults.VOICE.trim()) "" else it
+                                }
+                                settings.chatPrompt = chatPromptDraft.trim().let {
+                                    if (it == com.openclaw.assistant.backend.PromptDefaults.CHAT.trim()) "" else it
+                                }
                                 // 注意：这里不要再调 AppCompatDelegate.setApplicationLocales（原来的 applyAppLanguage）。
                                 // 它在 API 33+ 会写系统级 per-app locale 并立刻触发配置变更/重建本界面，
                                 // 于是下面 onSave() 里的对话框状态落在已经销毁的 composition 上 —— 弹窗永远不会出现。
@@ -1804,12 +1821,111 @@ fun SettingsScreen(
                 }
             }
 
+            // --- 提示词卡片 ---
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = stringResource(R.string.prompt_settings_title),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(bottom = 4.dp)
+            )
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                )
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(stringResource(R.string.prompt_voice_label), style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        stringResource(R.string.prompt_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = voicePromptDraft,
+                        onValueChange = { voicePromptDraft = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        minLines = 6,
+                        maxLines = 14,
+                        textStyle = MaterialTheme.typography.bodySmall
+                    )
+                    TextButton(onClick = {
+                        voicePromptDraft = com.openclaw.assistant.backend.PromptDefaults.VOICE
+                    }) { Text(stringResource(R.string.prompt_reset), fontSize = 13.sp) }
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), thickness = 0.5.dp)
+
+                    Text(stringResource(R.string.prompt_chat_label), style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        stringResource(R.string.prompt_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = chatPromptDraft,
+                        onValueChange = { chatPromptDraft = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        minLines = 6,
+                        maxLines = 14,
+                        textStyle = MaterialTheme.typography.bodySmall
+                    )
+                    TextButton(onClick = {
+                        chatPromptDraft = com.openclaw.assistant.backend.PromptDefaults.CHAT
+                    }) { Text(stringResource(R.string.prompt_reset), fontSize = 13.sp) }
+                }
+            }
+
             } // end CollapsibleSection for Chat
 
             Spacer(modifier = Modifier.height(24.dp))
             }
 
             if (selectedSettingsCategory == SettingsCategory.Diagnostics) {
+                val diagContext = context
+                CollapsibleSection(
+                    title = stringResource(R.string.preflight_panel_title),
+                    subtitle = stringResource(R.string.preflight_panel_desc),
+                    initiallyExpanded = true,
+                    collapsible = false,
+                ) {
+                    com.openclaw.assistant.ui.diag.PreflightCheckSection(
+                        onFix = { fix ->
+                            when (fix) {
+                                com.openclaw.assistant.ui.PreflightFix.MIC_PERMISSION -> {
+                                    val activity = diagContext as? android.app.Activity
+                                    if (activity != null) {
+                                        androidx.core.app.ActivityCompat.requestPermissions(
+                                            activity,
+                                            arrayOf(android.Manifest.permission.RECORD_AUDIO),
+                                            9101
+                                        )
+                                    }
+                                }
+                                com.openclaw.assistant.ui.PreflightFix.ASSISTANT_SETTINGS ->
+                                    com.openclaw.assistant.speech.AssistantRoleStatus
+                                        .openAssistantSettings(diagContext)
+                                com.openclaw.assistant.ui.PreflightFix.VOICE_SETTINGS ->
+                                    selectedSettingsCategoryName = SettingsCategory.Voice.name
+                                com.openclaw.assistant.ui.PreflightFix.BACKEND_SETTINGS ->
+                                    selectedSettingsCategoryName = SettingsCategory.Backend.name
+                                com.openclaw.assistant.ui.PreflightFix.RESTART_APP ->
+                                    com.openclaw.assistant.service.VoiceRecovery.restartProcess(
+                                        diagContext,
+                                        com.openclaw.assistant.backend.VoiceTargetResolver
+                                            .defaultTarget(diagContext)
+                                    )
+                                com.openclaw.assistant.ui.PreflightFix.BATTERY_OPTIMIZATION ->
+                                    com.openclaw.assistant.ui.BatteryOptimization
+                                        .requestWhitelist(diagContext)
+                            }
+                        }
+                    )
+                }
+                Spacer(modifier = Modifier.height(24.dp))
+
                 AgentDiagnostics.initialize(context)
                 val diagnostics by AgentDiagnostics.snapshots.collectAsState()
                 val toolEvents by ToolProgressFeed.events.collectAsState()
@@ -1871,6 +1987,28 @@ fun SettingsScreen(
                             soundOptions = wakeSoundOptions
                         )
 
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            Text(
+                                stringResource(R.string.voice_exit_phrases_title),
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                            Text(
+                                stringResource(R.string.voice_exit_phrases_desc),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color.Gray
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            OutlinedTextField(
+                                value = exitPhrasesText,
+                                onValueChange = { exitPhrasesText = it },
+                                modifier = Modifier.fillMaxWidth(),
+                                minLines = 2,
+                                maxLines = 4,
+                                placeholder = { Text(stringResource(R.string.exit_phrases_default)) }
+                            )
+                        }
+
                         HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), thickness = 0.5.dp)
 
                         Column(modifier = Modifier.fillMaxWidth()) {
@@ -1927,12 +2065,23 @@ fun SettingsScreen(
                             ) {
                                 listOf(
                                     SettingsRepository.CONNECTION_TYPE_GATEWAY to stringResource(R.string.wakeword_use_gateway),
+                                    SettingsRepository.CONNECTION_TYPE_OPENCLAW_HTTP to
+                                        stringResource(R.string.wakeword_use_openclaw_http),
                                     SettingsRepository.CONNECTION_TYPE_HTTP to stringResource(R.string.wakeword_use_http)
                                 ).forEach { (type, label) ->
                                     FilterChip(
                                         selected = wakewordConnectionType == type,
                                         onClick = { wakewordConnectionType = type },
-                                        label = { Text(label) }
+                                        modifier = Modifier.weight(1f),
+                                        label = {
+                                            Text(
+                                                label.replaceFirst(" ", "\n"),
+                                                fontSize = 11.sp,
+                                                lineHeight = 13.sp,
+                                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                                modifier = Modifier.fillMaxWidth()
+                                            )
+                                        }
                                     )
                                 }
                             }
@@ -2544,11 +2693,17 @@ private fun langDiag(context: Context, line: String) = LocaleAwareActivity.langD
 
 private val DISPLAY_LANGUAGE_OPTIONS = listOf(
     // 只列翻译完整的语言（见 README 第 6 节）；各语言用自己的写法，不写国家/地区名。
-    // ja / ko / de / es / fr / hi / ru 的资源仍在包内，但翻译不完整（会混英文），补齐后再加回来。
     "" to "System Default",
     "zh-CN" to "简体中文",
     "zh-TW" to "繁體中文",
-    "en" to "English"
+    "en" to "English",
+    "ja" to "日本語",
+    "ko" to "한국어",
+    "de" to "Deutsch",
+    "es" to "Español",
+    "fr" to "Français",
+    "hi" to "हिन्दी",
+    "ru" to "Русский"
 )
 
 // Fallback language list used when device query fails

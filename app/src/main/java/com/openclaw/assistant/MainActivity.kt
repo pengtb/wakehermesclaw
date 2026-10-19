@@ -668,6 +668,8 @@ fun MainScreen(
     // 唤醒词开关显示的是**服务实际在不在跑**（不是设置里记的值）
     val hotwordEnabled by com.openclaw.assistant.service.HotwordService.running.collectAsState()
     var continuousMode by remember { mutableStateOf(settings.continuousMode) }
+    // 主页也放一份语音会话连接方式，改完立即生效（语音每次发送都会重新读）
+    var voiceConnType by remember { mutableStateOf(settings.wakewordConnectionType) }
     var statusBarShortcut by remember { mutableStateOf(settings.statusBarShortcut) }
     val displayWakeWord = settings.getWakeWordDisplayName()
     var isAssistantSet by remember { mutableStateOf((context as? MainActivity)?.isAssistantActive() ?: false) }
@@ -684,6 +686,8 @@ fun MainScreen(
     var preflightProblems by remember {
         mutableStateOf<List<com.openclaw.assistant.ui.PreflightProblem>>(emptyList())
     }
+    // 主后端是 Hermes 但语音连接方式设成网关：这种组合点了必然失败，先提示改回 HTTP
+    var showHermesGatewayHint by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val smsEnabled by runtime.smsEnabled.collectAsState()
     val screenRecordActive by runtime.screenRecordActive.collectAsState()
@@ -972,6 +976,38 @@ fun MainScreen(
             Text(text = stringResource(R.string.activation_methods), fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.fillMaxWidth())
             Spacer(modifier = Modifier.height(12.dp))
 
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                listOf(
+                    SettingsRepository.CONNECTION_TYPE_GATEWAY to stringResource(R.string.wakeword_use_gateway),
+                    SettingsRepository.CONNECTION_TYPE_OPENCLAW_HTTP to
+                        stringResource(R.string.wakeword_use_openclaw_http),
+                    SettingsRepository.CONNECTION_TYPE_HTTP to stringResource(R.string.wakeword_use_http)
+                ).forEach { (type, label) ->
+                    FilterChip(
+                        selected = voiceConnType == type,
+                        onClick = {
+                            voiceConnType = type
+                            settings.wakewordConnectionType = type
+                        },
+                        modifier = Modifier.weight(1f),
+                        // 三个并排会挤：统一断成两行（OpenClaw / 网关），居中，字号小一点
+                        label = {
+                            Text(
+                                label.replaceFirst(" ", "\n"),
+                                fontSize = 11.sp,
+                                lineHeight = 13.sp,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+
             val displayWakeWord = settings.getWakeWordDisplayName()
 
             Row(modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Max), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -1078,6 +1114,10 @@ fun MainScreen(
                     else emptyList()
                     when {
                         blocking.isNotEmpty() -> preflightProblems = blocking + optionalTips
+                        // 主后端是 Hermes（只能走 HTTP），但连接方式选了网关：先提示，别让它白跑一轮
+                        startsNewRound &&
+                            com.openclaw.assistant.ui.HomePreflight
+                                .hermesOnGatewayConflict(chatContext) -> showHermesGatewayHint = true
                         startsNewRound -> {
                             pttStartedAt = now
                             // 必须显式带上目标：不带就会落到"唤醒词连接方式"的默认值（网关），
@@ -1151,32 +1191,27 @@ fun MainScreen(
                 Text(stringResource(R.string.voice_chat), fontSize = 18.sp, fontWeight = FontWeight.Medium)
             }
             Spacer(modifier = Modifier.height(8.dp))
+            val targetLabel = stringResource(
+                when (voiceConnType) {
+                    SettingsRepository.CONNECTION_TYPE_GATEWAY -> R.string.wakeword_use_gateway
+                    SettingsRepository.CONNECTION_TYPE_OPENCLAW_HTTP -> R.string.wakeword_use_openclaw_http
+                    else -> R.string.wakeword_use_http
+                }
+            )
+            val targetReady = remember(voiceConnType) {
+                com.openclaw.assistant.ui.HomePreflight.voiceTargetConfigured(chatContext)
+            }
             Text(
                 stringResource(
-                    if (continuousMode) R.string.voice_chat_hint_continuous else R.string.voice_chat_hint_ptt
+                    if (!targetReady) R.string.voice_target_not_configured
+                    else if (continuousMode) R.string.voice_chat_hint_continuous
+                    else R.string.voice_chat_hint_ptt,
+                    *if (!targetReady) arrayOf(targetLabel) else emptyArray<String>()
                 ),
                 fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = if (!targetReady) MaterialTheme.colorScheme.error
+                        else MaterialTheme.colorScheme.onSurfaceVariant
             )
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Button(
-                onClick = {
-                    // 打开聊天前先确认有启用的后端，否则进去只会看到一句"发送失败"
-                    val problems = com.openclaw.assistant.ui.HomePreflight.chatProblems(chatContext)
-                    if (problems.isNotEmpty()) {
-                        preflightProblems = problems
-                    } else {
-                        chatContext.startActivity(Intent(chatContext, SessionListActivity::class.java))
-                    }
-                },
-                modifier = Modifier.fillMaxWidth().height(56.dp),
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = null)
-                Spacer(modifier = Modifier.width(12.dp))
-                Text(stringResource(R.string.open_chat), fontSize = 18.sp, fontWeight = FontWeight.Medium)
-            }
 
             // Legacy warning if ONLY legacy is configured and fails
             if (!isConfigured && !nodeConnected) {
@@ -1213,6 +1248,20 @@ fun MainScreen(
 
     if (showTroubleshooting) TroubleshootingDialog(onDismiss = { showTroubleshooting = false })
     if (showHowToUse) HowToUseDialog(displayWakeWord = displayWakeWord, onDismiss = { showHowToUse = false })
+
+    // Hermes 主后端 + 网关连接方式：语音必然发不出去，提示改成 HTTP
+    if (showHermesGatewayHint) {
+        AlertDialog(
+            onDismissRequest = { showHermesGatewayHint = false },
+            title = { Text(stringResource(R.string.voice_hermes_gateway_title)) },
+            text = { Text(stringResource(R.string.voice_hermes_gateway_message)) },
+            confirmButton = {
+                TextButton(onClick = { showHermesGatewayHint = false }) {
+                    Text(stringResource(R.string.got_it))
+                }
+            }
+        )
+    }
 
     // 点「语音对话」/「打开聊天」但前提没满足：把缺的逐条列出来，并给一条"去哪补"的按钮。
     // 其中 optional=true 的条目是建议（比如电池优化白名单），单独一小段标「（可选）」，不拦操作。
@@ -1935,19 +1984,11 @@ fun TroubleshootingDialog(onDismiss: () -> Unit) {
     AlertDialog(onDismissRequest = onDismiss, title = { Text(stringResource(R.string.assist_gesture_not_working)) }, text = {
         Column(verticalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.verticalScroll(rememberScrollState())) {
             Text(stringResource(R.string.troubleshooting_intro), fontSize = 14.sp)
-            listOf("circle_to_search", "gesture_navigation", "google_app_setting", "refresh_binding").forEach { key -> 
+            listOf("circle_to_search", "gesture_navigation", "google_app_setting", "refresh_binding", "nova_shortcut").forEach { key -> 
                 val titleId = context.resources.getIdentifier("${key}_title", "string", context.packageName)
                 val descId = context.resources.getIdentifier("${key}_desc", "string", context.packageName)
                 BulletPoint(stringResource(titleId), stringResource(descId)) 
             }
-            Spacer(modifier = Modifier.height(8.dp)); HorizontalDivider(); Spacer(modifier = Modifier.height(8.dp))
-            Button(onClick = {
-                try {
-                    context.startService(Intent(context, OpenClawAssistantService::class.java).apply { action = OpenClawAssistantService.ACTION_SHOW_ASSISTANT })
-                } catch (e: Exception) {
-                    android.widget.Toast.makeText(context, context.getString(R.string.failed_to_start_service, e.message.orEmpty()), android.widget.Toast.LENGTH_SHORT).show()
-                }
-            }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.tertiary)) { Text(stringResource(R.string.debug_force_start)) }
         }
     }, confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.got_it)) } })
 }

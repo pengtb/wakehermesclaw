@@ -116,6 +116,12 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- 长按状态栏磁贴时打开这个 Activity：默认会跳到"语音助手设置"（因为本应用是
+                 默认助理），这里显式声明后 SystemUI 会直接打开应用首页。 -->
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE_PREFERENCES" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
         </activity>
 
         <!-- Settings Activity -->
@@ -235,14 +241,36 @@
             </intent-filter>
         </service>
 
-        <!-- 磁贴的"跳板"：无界面，只负责让系统收起通知栏面板并触发语音会话 -->
+        <!-- 磁贴的"跳板"，同时也是给外部手势/快捷方式用的入口：
+             被 Nova 这类桌面的"手势→语音助手"、以及 ASSIST / VOICE_COMMAND 调用时，
+             它自己不说话，只负责把语音会话拉起来然后立刻退出。
+             exported=true 是必须的，否则第三方桌面/系统助手选择器看不到它。 -->
         <activity
             android:name="com.openclaw.assistant.VoiceLaunchActivity"
-            android:exported="false"
+            android:exported="true"
+            android:label="@string/qs_tile_label"
             android:excludeFromRecents="true"
             android:noHistory="true"
             android:taskAffinity=""
-            android:theme="@android:style/Theme.NoDisplay" />
+            android:theme="@android:style/Theme.NoDisplay">
+            <intent-filter>
+                <action android:name="android.intent.action.ASSIST" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VOICE_COMMAND" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.speech.action.VOICE_SEARCH_HANDS_FREE" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <!-- 自家入口：给静态快捷方式/外部工具用，避免 targetPackage 在 debug/release 下写死 -->
+            <intent-filter>
+                <action android:name="com.openclaw.assistant.action.VOICE_CHAT" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
 
         <!-- Session Foreground Service (prevents process freeze during conversation) -->
         <service

@@ -35,8 +35,19 @@ class OpenClawGatewayAdapter(override val config: AgentBackendConfig) : AgentCli
 class OpenClawHttpAdapter(override val config: AgentBackendConfig) : AgentClient {
     private val client = OpenClawClient()
 
+    /**
+     * 设置里填的往往是 `http://host:port` 这种裸地址（旧的 legacy 配置更是如此），
+     * 而这条链路要打的是 OpenAI 兼容端点。这里统一补成 `/v1/chat/completions`，
+     * 口径与 [com.openclaw.assistant.data.SettingsRepository.getChatCompletionsUrl] 一致。
+     */
+    private fun endpoint(): String {
+        val url = config.baseUrl?.trim()?.trimEnd('/').orEmpty()
+        if (url.isBlank()) return ""
+        return if (url.contains("/v1/")) url else "$url/v1/chat/completions"
+    }
+
     override suspend fun testConnection(): ConnectionTestResult {
-        val url = config.baseUrl?.trim().orEmpty()
+        val url = endpoint()
         return if (url.startsWith("http://") || url.startsWith("https://")) {
             val started = System.currentTimeMillis()
             client.testConnection(url, config.apiKeyOrToken).fold(
@@ -49,12 +60,15 @@ class OpenClawHttpAdapter(override val config: AgentBackendConfig) : AgentClient
     }
 
     override fun sendMessage(messages: List<AgentMessage>, options: AgentSendOptions): Flow<AgentEvent> = flow {
-        val url = config.baseUrl?.trim().orEmpty()
+        val url = endpoint()
         if (url.isBlank()) {
             emit(AgentEvent.Error("OpenClaw HTTP baseUrl is not configured"))
             return@flow
         }
         val text = messages.lastOrNull { it.role.equals("user", ignoreCase = true) }?.content.orEmpty()
+        val systemPrompt = messages.filter { it.role.equals("system", ignoreCase = true) }
+            .joinToString(separator = "\n\n") { it.content }
+            .takeIf { it.isNotBlank() }
         if (text.isBlank()) {
             emit(AgentEvent.Error("OpenClaw HTTP message is empty"))
             return@flow
@@ -67,6 +81,7 @@ class OpenClawHttpAdapter(override val config: AgentBackendConfig) : AgentClient
             authToken = config.apiKeyOrToken?.takeIf { it.isNotBlank() },
             agentId = options.extra["agentId"]?.takeIf { it.isNotBlank() },
             modelName = config.modelName?.takeIf { it.isNotBlank() },
+            systemPrompt = systemPrompt,
         )
         result.fold(
             onSuccess = { response ->

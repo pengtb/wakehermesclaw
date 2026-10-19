@@ -30,8 +30,12 @@
   （表现为弹窗永不出现）。`OpenClawApplication` 里只在进程启动时同步一次。
 - 语言只在界面重新创建时生效，因此保存后询问"是否立即重启"，确认后 `LocaleAwareActivity.restartIntoMain()`
   清任务栈回主界面。
-- `DISPLAY_LANGUAGE_OPTIONS` 只放**翻译完整**的语言；条目用各语言自身写法（简体中文 / 繁體中文 / English），
-  不写国家/地区名。
+- `DISPLAY_LANGUAGE_OPTIONS` 只放**翻译完整**的语言；条目用各语言自身写法（简体中文 / 繁體中文 / English /
+  日本語 / 한국어 / Deutsch / Español / Français / हिन्दी / Русский），不写国家/地区名。
+- 现状：10 种语言全部 1092/1092。加一条新文案就要同步 10 个目录，否则该语言覆盖率跌破 100%——
+  列表里放的是"已完整"的承诺，别在没补齐时先加进去。
+- 批量补翻译的口径：占位符（`%1$s` / `%2$d`）数量和顺序必须与原条目一致；法语等语言的撇号必须写成 `'`；
+  裸 `&` / `<` / `>` 要转实体。合并后跑一次 `compile*Resources`（或整包构建）才算验证过。
 
 ## 3. Mobile Bridge
 
@@ -90,9 +94,16 @@
 
 ## 4. TTS（提供商 / 缺引擎时的提示）
 
-- 提供商：本地（Android 系统 TTS，默认）/ ElevenLabs / OpenAI / **OpenAI 兼容**
+- 提供商：本地（Android 系统 TTS，默认）/ ElevenLabs / **OpenAI 兼容**
   （`speech/OpenAiCompatProvider.kt`：`POST {base}/v1/audio/speech`，地址 / 模型 / 音色可配、API key 可留空）/
-  VOICEVOX（仅 `full` flavor）。原来那个走自定义 `/tts` 契约的「Rig Qwen」provider 已被 OpenAI 兼容取代。
+  **华为 HMS（ML Kit）**（`speech/HmsTtsProvider.kt`，云端 `TTS_ONLINE_MODE`，单次 ≤450 字切分）/
+  VOICEVOX（仅 `full` flavor）。原来那个走自定义 `/tts` 契约的「Rig Qwen」provider 和独立的 OpenAI 条目都已删掉，
+  OpenAI 系只留「OpenAI 兼容」一条。
+- HMS TTS 只走云端：设备端要 `huawei_module_mlkit_tts_eagle/bee/fly` 动态模块，非华为 ROM 拿不到
+  （`errcode:2`、服务端回 `The model does not exist`），别再往设备端方案上返工。
+- HMS 的 API key 是**显式使用**：debug 包的默认值来自 `local.properties` 的 `hms.asr.key`
+  （`BuildConfig.HMS_ASR_KEY`，`local.properties` 不进仓库），release 包默认空、要求用户自己填；
+  provider 只读 `settings.ttsHmsApiKey`，不做隐式回退。
 - 诊断文案在 `speech/diagnostics/VoiceDiagnostics.kt`，一律走字符串资源，**别写死英文**（中文界面下曾漏出英文）。
 - 「本地 TTS + 系统里一个引擎都没有」→ 弹 `TtsEngineHintDialog`（`ui/settings/SettingsSaveSupport.kt`）：
   正文里的 http(s) 链接由 `linkifyUrls()` 自动标注成可点链接（不要写死字符下标，各语言文案位置不同），
@@ -156,3 +167,43 @@ adb -s <设备地址> install -r <apk>      # 装到真机（debug 包名 com.op
 - 错误提示统一带环节：`OpenClawSession.staged()` / `ChatViewModel.staged()` 把文案包成
   `【环节】细节`（环节＝语音识别 / 后端连接 / 配置）。新增错误分支时照这个包一层，
   只丢一个错误码（比如 `HTTP 502`）用户看不出是哪一环的问题。
+
+## 10. 语音链路：后端怎么选、提示词怎么发
+
+- **「语音会话连接」只服务语音**：`wakewordConnectionType`（网关 / Hermes HTTP）。没手动设置过时按**主后端**推导
+  （`OPENCLAW_GATEWAY` → 网关；`HERMES_API_SERVER` / `OPENCLAW_HTTP` → HTTP；一个后端都没有时维持网关）。
+  主页「语音对话」标题下面那两个 chip 和设置里是同一个键，改完下一条消息就生效。
+- **文本聊天不看这个设置**：聊天只看会话选的后端类型，而 `OPENCLAW_GATEWAY` 这个类型没有 HTTP 兜底
+  （`sendViaGateway` → `runtime.sendChat`，网关没连上直接报 `OpenClaw Gateway is not connected`）。
+  所以「主后端 Hermes + 连接方式网关」在语音上是必然失败的组合，点按钮前会弹提示（`HomePreflight.hermesOnGatewayConflict`）。
+- **两套提示词**：`backend/PromptDefaults.kt` 的 `VOICE` / `CHAT` 是默认值，设置 → 聊天 里的两个框可改，
+  **留空 = 用默认**（保存时若内容与默认一致会写空串，这样以后默认值更新还能吃到）。
+- 语音请求还会拼上 `backend/VoiceContext.kt` 的现场环境（时间 / 位置 / 电量 / 网络 / 屏幕），
+  所以语音回答可以直接说「现在几点」「你手机还有多少电」，不需要再反查用户。
+- **Runs API 必须用 `instructions`**：`/v1/runs` 只读 `input`（字符串）+ `instructions`，`input` 数组里的
+  `system` 角色会被整个丢掉。`HermesApiServerClient.buildRunsRequestBody()` 会把 system 消息提到
+  `instructions` 顶层字段，`HermesApiServerClientTest` 里有两个断言锁住这件事——改传输层时别把提示词又弄丢。
+
+## 11. 定时任务（Hermes cron）
+
+- 列表 / 新建 / 编辑走 `backend/HermesConfigApi.kt` 的 `/api/jobs`（要 gateway API key）。
+- Hermes 的 job 支持 **`script`**（相对 `HERMES_HOME/scripts/` 的文件名，服务器会校验，绝对路径和 `../` 都拒），
+  有脚本时结果由脚本产出、`prompt` 可为空。`JobEditDialog` 里那一行只在 Hermes 后端显示（OpenClaw 没有脚本概念）。
+- `HermesCronSchedule.expr` 必须可空：`interval` / `once` 任务没有 `expr`，声明成非空会让**整个列表**反序列化失败。
+
+## 12. 深色模式
+
+- 应用主题是 `ui/theme/OpenClawAssistantTheme`：深色用品牌深色方案，浅色用同色系浅色方案，默认跟随系统。
+- **所有 Activity 的 `setContent` 都要包这个主题**。裸 `MaterialTheme {}` 是 M3 默认浅色，永远不跟系统走
+  （后端管理列表 / 编辑器曾因此一直是白的）。
+- 设置向导（`ui/SetupGuideScreen.kt`）自带走一套 onboarding 配色（渐变 + 白卡片），不走主题；
+  它的 token 现在按 `isSystemInDarkTheme()` 取 `Onboarding*Dark`，新增颜色时两边都要加。
+
+## 13. 语音退出词
+
+- 实现：`speech/ExitPhrases.kt`，在 `OpenClawSession.sendToOpenClaw()` 入口判断——识别出最终文本、
+  还没发给后端的那一刻。命中就 `playTone` + `finish()`，这条话不会进聊天记录。
+- 匹配口径故意保守：归一化（小写、去空白标点、去句尾语气词"吧/了/啊/呀/呗"）后**整句等于**某个退出词。
+  "退出。""退出吧"会退，"退出这个应用怎么弄"不会。
+- 默认词按**界面语言**取（`exit_phrases_default` 资源），用户自定义存在 `exitPhrasesRaw`，留空即回落默认。
+- 设置入口在「设置 → 唤醒词」，输入框用逗号 / 顿号 / 换行分隔，占位提示显示当前语言的默认值。

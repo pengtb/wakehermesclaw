@@ -48,6 +48,23 @@ class HermesApiServerClientTest {
         assertTrue(body.contains("\"content\":\"first\""))
     }
 
+    @Test fun `runs body passes system prompt as instructions`() {
+        val body = client(useRunsApi = true).buildRunsRequestBody(
+            listOf(
+                AgentMessage.system("be brief, this is spoken aloud"),
+                AgentMessage.user("hello"),
+            ),
+        )
+        // Runs API 只认 instructions，不读 messages 里的 system 角色；漏了这条语音提示就等于没加
+        assertTrue(body.contains("\"instructions\":\"be brief, this is spoken aloud\""))
+        assertTrue(body.contains("\"input\":\"hello\""))
+    }
+
+    @Test fun `runs body omits instructions when there is no system message`() {
+        val body = client(useRunsApi = true).buildRunsRequestBody(listOf(AgentMessage.user("hello")))
+        assertTrue(!body.contains("\"instructions\""))
+    }
+
     @Test fun `tool progress event is parsed to ToolProgress`() {
         val ev = SseEvent(event = "hermes.tool.progress", data = """{"tool":"web.search","stage":"started","detail":"q=hi"}""")
         val collected = StringBuilder()

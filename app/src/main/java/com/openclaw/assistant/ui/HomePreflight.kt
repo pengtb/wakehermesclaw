@@ -11,6 +11,7 @@ import com.openclaw.assistant.OpenClawApplication
 import com.openclaw.assistant.R
 import com.openclaw.assistant.backend.AgentBackendConfig
 import com.openclaw.assistant.backend.BackendRepository
+import com.openclaw.assistant.backend.BackendType
 import com.openclaw.assistant.backend.VoiceBackendSelector
 import com.openclaw.assistant.backend.VoiceTargetResolver
 import com.openclaw.assistant.data.SettingsRepository
@@ -106,6 +107,21 @@ object HomePreflight {
         return tips
     }
 
+    /**
+     * 主后端是 Hermes（只支持 HTTP），但"语音会话连接"设成了网关 —— 这种组合下语音必然发不出去：
+     * VoiceTargetResolver 会按网关给目标，Hermes 那条 HTTP 链路根本收不到请求，最后表现成
+     * "网关未连接"或干脆超时。点语音前拦一下，比让用户等一轮失败再猜强。
+     */
+    fun hermesOnGatewayConflict(context: Context): Boolean {
+        val settings = SettingsRepository.getInstance(context)
+        if (settings.wakewordConnectionType != SettingsRepository.CONNECTION_TYPE_GATEWAY) return false
+        val primary = runCatching {
+            BackendRepository.getInstance(context).backends.value
+                .firstOrNull { it.enabled && it.isPrimary }
+        }.getOrNull() ?: return false
+        return primary.type == BackendType.HERMES_API_SERVER
+    }
+
     /** 打开聊天：只需要一个启用的后端（聊天不走桥，也不需要运行时权限） */
     fun chatProblems(context: Context): List<PreflightProblem> {
         val problems = mutableListOf<PreflightProblem>()
@@ -146,6 +162,29 @@ object HomePreflight {
         BackendRepository.getInstance(context).backends.value
     }.getOrDefault(emptyList()).filter { it.enabled }
 
+    /**
+     * 主页那两个 chip 选的那一类后端，到底配了没有。
+     * 只看"有没有这类后端条目"（或旧的单条配置），不判断连不连得上——连不上是另一类问题，
+     * 交给 [voiceProblems] 的回复后端检查。
+     */
+    fun voiceTargetConfigured(context: Context): Boolean {
+        val settings = SettingsRepository.getInstance(context)
+        return when (settings.wakewordConnectionType) {
+            SettingsRepository.CONNECTION_TYPE_GATEWAY ->
+                enabledBackends(context).any { it.type == BackendType.OPENCLAW_GATEWAY } ||
+                    runCatching {
+                        (context.applicationContext as OpenClawApplication).nodeRuntime.manualHost.value.isNotBlank()
+                    }.getOrDefault(false)
+
+            SettingsRepository.CONNECTION_TYPE_OPENCLAW_HTTP ->
+                enabledBackends(context).any { it.type == BackendType.OPENCLAW_HTTP }
+
+            else ->
+                enabledBackends(context).any { it.type == BackendType.HERMES_API_SERVER } ||
+                    settings.httpUrl.isNotBlank()
+        }
+    }
+
     /** 这一轮会走哪条路、那条路上有没有可用后端（规则与 VoiceTargetResolver 完全一致） */
     private fun resolvedVoiceBackendId(context: Context): String? {
         val gatewayHealthy = runCatching {
@@ -154,7 +193,8 @@ object HomePreflight {
         return VoiceBackendSelector.selectBackendId(
             VoiceTargetResolver.defaultTarget(context),
             enabledBackends(context),
-            gatewayHealthy
+            gatewayHealthy,
+            SettingsRepository.getInstance(context).wakewordConnectionType,
         )
     }
 }

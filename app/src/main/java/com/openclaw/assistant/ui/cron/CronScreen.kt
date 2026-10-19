@@ -276,11 +276,12 @@ fun CronJobList(backend: AgentBackendConfig) {
         JobEditDialog(
             title = stringResource(R.string.cron_add_job),
             onDismiss = { showAddDialog = false },
-            onSave = { name, expr, prompt, repeat ->
+            showScript = true,
+            onSave = { name, expr, prompt, repeat, script ->
                 scope.launch {
                     isLoading = true
                     try {
-                        api.createJob(backend, name, expr, prompt, repeat = repeat)
+                        api.createJob(backend, name, expr, prompt, repeat = repeat, script = script)
                         showAddDialog = false
                         refresh()
                     } catch (e: Exception) {
@@ -300,8 +301,10 @@ fun CronJobList(backend: AgentBackendConfig) {
             initialSchedule = job.schedule.editText(),
             initialPrompt = job.prompt,
             initialRepeat = job.repeat?.times,
+            initialScript = job.script.orEmpty(),
+            showScript = true,
             onDismiss = { editingJob = null },
-            onSave = { name, expr, prompt, repeat ->
+            onSave = { name, expr, prompt, repeat, script ->
                 scope.launch {
                     isLoading = true
                     try {
@@ -311,7 +314,8 @@ fun CronJobList(backend: AgentBackendConfig) {
                             name = name,
                             schedule = expr,
                             prompt = prompt,
-                            repeat = repeat
+                            repeat = repeat,
+                            script = script
                         )
                         editingJob = null
                         refresh()
@@ -572,7 +576,7 @@ private fun OpenClawCronJobList() {
         JobEditDialog(
             title = stringResource(R.string.cron_add_job),
             onDismiss = { showAddDialog = false },
-            onSave = { name, expr, prompt, _ ->
+            onSave = { name, expr, prompt, _, _ ->
                 scope.launch {
                     isLoading = true
                     try {
@@ -595,7 +599,7 @@ private fun OpenClawCronJobList() {
             initialSchedule = job.schedule.expr.orEmpty(),
             initialPrompt = job.promptText(),
             onDismiss = { editingJob = null },
-            onSave = { name, expr, prompt, _ ->
+            onSave = { name, expr, prompt, _, _ ->
                 scope.launch {
                     isLoading = true
                     try {
@@ -786,12 +790,16 @@ fun JobEditDialog(
     initialSchedule: String = "",
     initialPrompt: String = "",
     initialRepeat: Int? = null,
+    initialScript: String = "",
+    /** true = Hermes 后端：多一个"脚本"行（脚本相对 HERMES_HOME/scripts/） */
+    showScript: Boolean = false,
     onDismiss: () -> Unit,
-    onSave: (name: String, expr: String, prompt: String, repeat: Int?) -> Unit
+    onSave: (name: String, expr: String, prompt: String, repeat: Int?, script: String?) -> Unit
 ) {
     var name by remember { mutableStateOf(initialName) }
     var expr by remember { mutableStateOf(initialSchedule) }
     var prompt by remember { mutableStateOf(initialPrompt) }
+    var script by remember { mutableStateOf(initialScript) }
     var repeatStr by remember { mutableStateOf(initialRepeat?.toString() ?: "") }
 
     var errorText by remember { mutableStateOf<String?>(null) }
@@ -827,6 +835,17 @@ fun JobEditDialog(
                     modifier = Modifier.fillMaxWidth(),
                     maxLines = 3
                 )
+                if (showScript) {
+                    TextField(
+                        value = script,
+                        onValueChange = { script = it },
+                        label = { Text(stringResource(R.string.cron_job_script)) },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        supportingText = { Text(stringResource(R.string.cron_job_script_hint)) },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Ascii)
+                    )
+                }
                 TextField(
                     value = repeatStr,
                     onValueChange = { repeatStr = it },
@@ -843,7 +862,7 @@ fun JobEditDialog(
                         errorText = emptyFieldsMessage
                     } else {
                         val repeatVal = repeatStr.toIntOrNull()
-                        onSave(name, expr, prompt, repeatVal)
+                        onSave(name, expr, prompt, repeatVal, script.trim().ifBlank { null })
                     }
                 }
             ) {

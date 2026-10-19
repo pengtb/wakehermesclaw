@@ -21,3 +21,12 @@ val OnboardingSurface = Color(0xFFFFFFFF)
 val OnboardingBorder = Color(0xFFE2E8F0)
 val OnboardingTextPrimary = Color(0xFF0F172A)
 val OnboardingTextSecondary = Color(0xFF475569)
+
+// 同一套 onboarding 配色的深色版（系统深色时用）
+val OnboardingGradientStartDark = Color(0xFF0B1220)
+val OnboardingGradientEndDark = Color(0xFF131A2A)
+val OnboardingSurfaceDark = Color(0xFF1B1B1F)
+val OnboardingBorderDark = Color(0xFF33343A)
+val OnboardingTextPrimaryDark = Color(0xFFECEDEF)
+val OnboardingTextSecondaryDark = Color(0xFFB0B6BE)
+val OnboardingAccentDark = Color(0xFFA5AEFF)

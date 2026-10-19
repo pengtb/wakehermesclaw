@@ -50,6 +50,8 @@ data class HermesCronJob(
     val name: String,
     val schedule: HermesCronSchedule,
     val prompt: String,
+    /** 相对 HERMES_HOME/scripts/ 的脚本名；有脚本时由脚本产出结果，prompt 可为空 */
+    val script: String? = null,
     val deliver: String = "local",
     val skills: List<String>? = null,
     val repeat: HermesCronRepeat? = null,
@@ -257,7 +259,8 @@ class HermesConfigApi(
         schedule: String,
         prompt: String,
         deliver: String = "local",
-        repeat: Int? = null
+        repeat: Int? = null,
+        script: String? = null
     ): HermesCronJob = withContext(Dispatchers.IO) {
         val baseUrl = requireBaseUrl(config)
         val bodyObj = buildJsonObject {
@@ -265,6 +268,7 @@ class HermesConfigApi(
             put("schedule", schedule.trim())
             put("prompt", prompt.trim())
             put("deliver", deliver.trim())
+            script?.trim()?.takeIf { it.isNotEmpty() }?.let { put("script", it) }
             if (repeat != null) {
                 put("repeat", repeat)
             }
@@ -289,13 +293,15 @@ class HermesConfigApi(
         schedule: String? = null,
         prompt: String? = null,
         enabled: Boolean? = null,
-        repeat: Int? = null
+        repeat: Int? = null,
+        script: String? = null
     ): HermesCronJob = withContext(Dispatchers.IO) {
         val baseUrl = requireBaseUrl(config)
         val bodyObj = buildJsonObject {
             if (name != null) put("name", name.trim())
             if (schedule != null) put("schedule", schedule.trim())
             if (prompt != null) put("prompt", prompt.trim())
+            if (script != null) put("script", script.trim())
             if (enabled != null) put("enabled", enabled)
             if (repeat != null) {
                 put("repeat", repeat)

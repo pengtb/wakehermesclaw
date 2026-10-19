@@ -44,7 +44,9 @@ class OpenClawClient() {
         authToken: String? = null,
         agentId: String? = null,
         modelName: String? = null,
-        attachments: List<Pair<String, String>> = emptyList()
+        attachments: List<Pair<String, String>> = emptyList(),
+        /** 系统提示词：作为 messages[0] 发出去（服务端不支持就退化成普通消息，不会报错） */
+        systemPrompt: String? = null
     ): Result<OpenClawResponse> = withContext(Dispatchers.IO) {
         if (httpUrl.isBlank()) {
             return@withContext Result.failure(
@@ -66,6 +68,12 @@ class OpenClawClient() {
                 addProperty("model", modelName?.trim()?.takeIf { it.isNotBlank() } ?: "openclaw")
                 addProperty("user", sessionId)
                 val messagesArray = JsonArray()
+                systemPrompt?.takeIf { it.isNotBlank() }?.let { prompt ->
+                    messagesArray.add(JsonObject().apply {
+                        addProperty("role", "system")
+                        addProperty("content", prompt)
+                    })
+                }
                 val userMessage = JsonObject().apply {
                     addProperty("role", "user")
                     if (attachments.isEmpty()) {

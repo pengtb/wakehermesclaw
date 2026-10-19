@@ -14,7 +14,7 @@
     <string name="more_options">More options</string>
     <string name="no_url">no URL</string>
     <string name="backend_type_hermes_with_url">Hermes Agent - %1$s</string>
-    <string name="backend_type_openclaw_with_host">OpenClaw - %1$s:%2$s</string>
+    <string name="backend_type_openclaw_with_host">OpenClaw Gateway - %1$s:%2$s</string>
     <string name="backend_type_openclaw_api_with_url">OpenClaw API - %1$s</string>
     <string name="backend_type">Type</string>
     <string name="backend_display_name">Display name</string>
@@ -395,7 +395,6 @@
     <string name="google_app_setting_desc">Open Google App → Tap Profile → Settings → Google Assistant → General → Turn off \'Google Assistant\' if it still interferes.</string>
     <string name="refresh_binding_title">Refresh Binding</string>
     <string name="refresh_binding_desc">If status is \'Active\' but it still won\'t work, try changing \'Digital assistant app\' to \'None\' and then back to \'WakeHermesClaw\'.</string>
-    <string name="debug_force_start">Debug: Force Start Session</string>
     
     <!-- Settings Screen -->
     <string name="connection">Connection</string>
@@ -539,7 +538,7 @@
     <string name="select_chat_backend_desc">Choose where this chat should be sent.</string>
     <string name="chat_type_openclaw">OpenClaw</string>
     <string name="chat_type_hermes">Hermes Agent</string>
-    <string name="chat_type_gateway">OpenClaw</string>
+    <string name="chat_type_gateway">OpenClaw Gateway chat</string>
     <string name="chat_type_http">OpenClaw</string>
 
     <!-- Session List -->
@@ -652,7 +651,7 @@
     <string name="setup_required_hint">Please configure connection in Settings</string>
 
     <!-- Gateway Settings -->
-    <string name="settings_gateway_title">OpenClaw Connection</string>
+    <string name="settings_gateway_title">OpenClaw Gateway Connection</string>
     <string name="disconnected">Disconnected</string>
     <string name="offline">Offline</string>
     <string name="gateway_discovery_active">Discovery active...</string>
@@ -674,8 +673,8 @@
     <string name="connect">Connect</string>
     <string name="gateway_foreground_service">Foreground Service</string>
     <string name="gateway_foreground_desc">Keep running in background</string>
-    <string name="gateway_use_node_chat">Use OpenClaw Chat</string>
-    <string name="gateway_use_node_chat_desc">Route chat via OpenClaw</string>
+    <string name="gateway_use_node_chat">Use OpenClaw Gateway chat</string>
+    <string name="gateway_use_node_chat_desc">Route chat via the OpenClaw Gateway</string>
 
     <!-- Legacy Settings -->
     <string name="settings_legacy_title">OpenClaw API</string>
@@ -737,7 +736,7 @@
     <string name="agents_fetch_failed">Connected, but failed to load agents</string>
 
     <!-- Wake Word Mode (Settings) -->
-    <string name="wake_word_node_title">OpenClaw Wake Word</string>
+    <string name="wake_word_node_title">OpenClaw Gateway wake word</string>
     <string name="wake_word_node_desc">Detects your wake word and sends a request to OpenClaw.</string>
     <string name="wake_word_gateway_desc">This device listens for your wake word and sends a command to OpenClaw. Enter the words you want to say to activate the assistant.</string>
     <string name="wake_word_node_foreground">App Open</string>
@@ -754,7 +753,7 @@
 
     <!-- Hardcoded strings extracted to resources -->
     <string name="connection_settings">Connection Settings</string>
-    <string name="tab_gateway">OpenClaw</string>
+    <string name="tab_gateway">OpenClaw Gateway</string>
     <string name="tab_http">OpenClaw API</string>
     <string name="gateway_configuration">OpenClaw Configuration</string>
     <string name="http_api_configuration">OpenClaw API Configuration</string>
@@ -763,8 +762,8 @@
     <string name="http_ignore_ssl_errors_warning">⚠️ Security Risk: Disabling SSL verification makes your connection vulnerable to man-in-the-middle (MITM) attacks. An attacker on the same network could intercept or tamper with your data. Only enable this if you fully trust your network and cannot install a proper certificate.</string>
     <string name="wakeword_connection_type">Voice Session Connection</string>
     <string name="wakeword_connection_type_desc">Choose the backend for voice sessions started without a wake word, such as long-press Home or headset button.</string>
-    <string name="wakeword_use_gateway">OpenClaw</string>
-    <string name="wakeword_use_http">Hermes Agent</string>
+    <string name="wakeword_use_gateway">OpenClaw Gateway</string>
+    <string name="wakeword_use_http">Hermes HTTP</string>
     <string name="enter_session_name">Enter session name</string>
     <string name="session_name_optional">Session Name (Optional)</string>
     <string name="running_tools">Running tools</string>
@@ -1105,7 +1104,7 @@
     <string name="asr_section_title">Speech recognition</string>
     <string name="asr_engine_hms">Huawei HMS (ML Kit)</string>
     <string name="asr_hms_api_key_label">API Key</string>
-    <string name="asr_hint_hms">Uses the Huawei recognizer on the device and shows text while you speak; needs HMS Core and your own API Key for an AGC app</string>
+    <string name="asr_hint_hms">Uses the Huawei recognizer on the device and shows text while you speak; needs HMS Core and your own API Key for an AGC app. Chinese and English only.</string>
     <string name="asr_error_no_key">Credentials are not set</string>
     <string name="asr_error_hms_unsupported">This CPU architecture does not support Huawei recognition</string>
     <string name="asr_error_hms_auth"> (check the API Key, HMS Core and your quota)</string>
@@ -1147,7 +1146,7 @@
     <string name="error_stage_config">Configuration</string>
     <string name="preflight_voice_not_bound">The voice service is stuck on a stale system binding: both the automatic reconnect and an automatic app restart failed. Tap Restart app to try again, or reboot the phone.</string>
     <string name="tts_provider_hms">Huawei HMS (ML Kit)</string>
-    <string name="tts_provider_hms_description">Huawei HMS ML Kit cloud synthesis. Needs a network connection and an AGC API key; the first 1,000,000 characters per month are free.</string>
+    <string name="tts_provider_hms_description">Huawei HMS ML Kit cloud synthesis. Needs a network connection and an AGC API key; the first 1,000,000 characters per month are free. Chinese and English only.</string>
     <string name="tts_error_hms_no_key">Huawei TTS needs an API key: fill it in Settings → Voice → Voice output.</string>
     <string name="tts_hms_api_key_label">API Key</string>
     <string name="tts_hms_api_key_note">Used for Huawei cloud synthesis (the same AGC API key as speech recognition). Cloud TTS is free for the first 1,000,000 characters per month.</string>
@@ -1190,4 +1189,30 @@
     <string name="qs_tile_already_added_hint">The tile is already in Quick Settings - swipe to the last page, or use Edit to drag it to the front</string>
     <string name="voice_restarting">The voice service is stuck - restarting the app to recover…</string>
     <string name="preflight_action_restart">Restart app</string>
+    <string name="preflight_panel_title">Voice &amp; chat preflight</string>
+    <string name="preflight_panel_desc">The same checks the home screen runs before Voice chat / Open chat</string>
+    <string name="preflight_all_pass">All checks passed - nothing to fix</string>
+    <string name="preflight_refresh">Re-check</string>
+    <string name="nova_shortcut_title">Last resort: Nova gesture + shortcut</string>
+    <string name="nova_shortcut_desc">Some ROMs hijack both the system gesture and Nova\'s Voice assistant action, so they never reach this app. In Nova: Settings - Gestures - pick a gesture - Action - Shortcut - Voice chat. This path bypasses the system assistant and always works.</string>
+    <string name="terminal_dashboard_off">Hermes dashboard is not running (%1$s). Start it on your computer with `hermes dashboard` (add --tui for the terminal), then tap reconnect.</string>
+    <string name="prompt_settings_title">System prompts</string>
+    <string name="prompt_voice_label">Voice conversation prompt</string>
+    <string name="prompt_chat_label">Text chat prompt</string>
+    <string name="prompt_hint">Sent as a system message before every request in this mode. Edit freely; tap Reset to go back to the built-in default.</string>
+    <string name="prompt_reset">Reset to default</string>
+    <string name="voice_hermes_gateway_title">Voice messages will not get through</string>
+    <string name="voice_hermes_gateway_message">Your primary backend is Hermes, which only speaks HTTP, but the voice connection mode is set to Gateway. Voice messages would be routed to the OpenClaw Gateway and fail. Change it to HTTP in Settings &gt; Wake word.</string>
+    <string name="voice_hermes_gateway_fix">Open settings</string>
+    <string name="voice_target_not_configured">Selected backend is not configured (%1$s). Add it under Settings &gt; Backends.</string>
+    <string name="cron_job_script">Script (optional)</string>
+    <string name="cron_job_script_hint">File name under Hermes\' scripts/ folder, e.g. daily_report.py</string>
+    <string name="wakeword_use_openclaw_http">OpenClaw HTTP</string>
+    <string name="bridge_http_only_hint">Only needed for HTTP mode (Hermes / OpenClaw API).</string>
+    <string name="bridge_gateway_redundant_title">Your primary backend is the OpenClaw Gateway</string>
+    <string name="bridge_gateway_redundant_message">The gateway is already an inbound channel that can call phone capabilities (camera, screen, SMS...). Turning the bridge on adds a second listening port and a second set of approvals with no benefit. Turn it on anyway?</string>
+    <string name="bridge_gateway_redundant_continue">Turn on anyway</string>
+    <string name="voice_exit_phrases_title">Exit phrases</string>
+    <string name="voice_exit_phrases_desc">Saying any of these ends the voice conversation right away. Separate with commas or new lines; leave empty to use the defaults.</string>
+    <string name="exit_phrases_default">exit,quit,goodbye,stop,close</string>
 </resources>

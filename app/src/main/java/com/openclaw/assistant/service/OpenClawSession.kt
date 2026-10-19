@@ -138,10 +138,11 @@ class OpenClawSession(
     private fun effectiveVoiceTarget(): String {
         return sessionArgs?.getString(OpenClawAssistantService.EXTRA_VOICE_TARGET)
             ?.takeIf { it == SettingsRepository.VOICE_TARGET_OPENCLAW || it == SettingsRepository.VOICE_TARGET_HERMES }
-            ?: if (settings.wakewordConnectionType == SettingsRepository.CONNECTION_TYPE_GATEWAY) {
-                SettingsRepository.VOICE_TARGET_OPENCLAW
-            } else {
+            // 只有"Hermes HTTP"才落到 Hermes；网关与 OpenClaw HTTP 都是 OpenClaw 产品
+            ?: if (settings.wakewordConnectionType == SettingsRepository.CONNECTION_TYPE_HTTP) {
                 SettingsRepository.VOICE_TARGET_HERMES
+            } else {
+                SettingsRepository.VOICE_TARGET_OPENCLAW
             }
     }
 
@@ -262,21 +263,25 @@ class OpenClawSession(
             }
             
             setContent {
-                AssistantUI(
-                    state = currentState.value,
-                    displayText = displayText.value,
-                    userQuery = userQuery.value,
-                    partialText = partialText.value,
-                    errorMessage = errorMessage.value,
-                    audioLevel = audioLevel.value,
-                    onClose = {
-                        isUserDismissed = true
-                        finish()
-                    },
-                    onRetry = { startListening() },
-                    onInterrupt = { interruptAndListen() },
-                    onStopListening = { speechManager.stopListening() }
-                )
+                // 面板要跟系统深浅色走，这里必须套主题——之前没套，用的是 Compose 默认浅色，
+                // 于是主页是深色、语音面板永远是白底。
+                OpenClawAssistantTheme {
+                    AssistantUI(
+                        state = currentState.value,
+                        displayText = displayText.value,
+                        userQuery = userQuery.value,
+                        partialText = partialText.value,
+                        errorMessage = errorMessage.value,
+                        audioLevel = audioLevel.value,
+                        onClose = {
+                            isUserDismissed = true
+                            finish()
+                        },
+                        onRetry = { startListening() },
+                        onInterrupt = { interruptAndListen() },
+                        onStopListening = { speechManager.stopListening() }
+                    )
+                }
             }
         }
         return composeView
@@ -338,7 +343,14 @@ class OpenClawSession(
                     }
 
                     // Store this ID in settings so ChatActivity and API calls use it
-                    currentSessionId?.let { settings.sessionId = it }
+                    // 标签按这条链路实际用的产品写死：走到这里说明目标是 Hermes（网关目标会走上面那支）。
+                    // 不写的话聊天列表会退回到"有 OpenClaw 配置就显示 OpenClaw"的启发式，标签就错了。
+                    currentSessionId?.let { id ->
+                        settings.sessionId = id
+                        com.openclaw.assistant.data.SessionProductStore.save(
+                            context, id, com.openclaw.assistant.ChatProduct.HERMES
+                        )
+                    }
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to handle session", e)
                     if (BuildConfig.FIREBASE_ENABLED) {
@@ -624,6 +636,13 @@ class OpenClawSession(
     }
 
     private fun sendToOpenClaw(message: String) {
+        // 说中退出词（"退出"/"exit"…）就直接收尾，不送后端
+        if (com.openclaw.assistant.speech.ExitPhrases.isExit(context, message)) {
+            Log.d(TAG, "exit phrase matched: '$message', finishing session")
+            playTone(android.media.ToneGenerator.TONE_PROP_ACK, 120)
+            finish()
+            return
+        }
         Log.d(TAG, "sendToOpenClaw() called, transitioning to THINKING")
         currentState.value = AssistantState.THINKING
         playTone(android.media.ToneGenerator.TONE_PROP_ACK, 150)
@@ -657,6 +676,7 @@ class OpenClawSession(
                         backendId = voiceBackendId,
                         sessionId = settings.sessionId,
                         agentId = agentId,
+                        voiceMode = true,
                     )
                 } else {
                     null
@@ -716,6 +736,7 @@ class OpenClawSession(
             voiceTarget = effectiveVoiceTarget(),
             backends = backends,
             gatewayHealthy = (context.applicationContext as OpenClawApplication).nodeRuntime.chatHealthOk.value,
+            connectionMode = settings.wakewordConnectionType,
         )
     }
 
@@ -889,6 +910,7 @@ class OpenClawSession(
                 userText = message,
                 sessionId = settings.sessionId,
                 agentId = agentId,
+                voiceMode = true,
             )
         } catch (e: Throwable) {
             cancelWaitPhraseTimer(); cancelInitialFillerPhrase(); stopThinkingSound()
@@ -1212,7 +1234,7 @@ private fun ScrollableConversationText(
                     .width(4.dp)
                     .height(with(density) { thumbPx.toDp() })
                     .clip(RoundedCornerShape(2.dp))
-                    .background(Color.Black.copy(alpha = 0.25f))
+                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.25f))
             )
         }
     }
@@ -1246,7 +1268,7 @@ fun AssistantUI(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(24.dp))
-                .background(Color.White)
+                .background(MaterialTheme.colorScheme.surface)
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -1259,7 +1281,7 @@ fun AssistantUI(
                     Icon(
                         imageVector = Icons.Default.Close,
                         contentDescription = stringResource(R.string.close),
-                        tint = Color.Gray
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -1349,7 +1371,7 @@ fun AssistantUI(
                 },
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Medium,
-                color = Color.Black.copy(alpha = 0.75f)
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f)
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -1370,7 +1392,7 @@ fun AssistantUI(
                     Text(
                         text = partialText,
                         fontSize = 16.sp,
-                        color = Color.Gray,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center
                     )
                 }
@@ -1380,7 +1402,7 @@ fun AssistantUI(
                     Text(
                         text = "$userQuery",
                         fontSize = 16.sp,
-                        color = Color.DarkGray, // Slightly different color
+                        color = MaterialTheme.colorScheme.onSurfaceVariant, // 和助手回复区分开
                         textAlign = TextAlign.Center,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
@@ -1392,18 +1414,25 @@ fun AssistantUI(
                     Text(
                         text = displayText,
                         fontSize = 18.sp,
-                        color = Color.Black,
+                        color = MaterialTheme.colorScheme.onSurface,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.padding(horizontal = 16.dp)
                     )
                 }
             }
 
-            // 正在听：给一个明确的"结束说话"（面板会盖住主页的按钮，对讲模式只能从这里收尾）
-            if (state == AssistantState.LISTENING) {
-                Spacer(modifier = Modifier.height(12.dp))
-                Button(onClick = onStopListening) {
-                    Text(stringResource(R.string.voice_stop_speaking))
+            // 「结束说话」：位置从面板出现的那一刻就占着（固定 40dp 高），只在"正在听"时才画按钮。
+            // 之前是 if (LISTENING) 才加整块，ASR 准备要一两秒，按钮迟到的同时把面板撑高，
+            // 看着就是"对话框先小后大变形"。
+            Spacer(modifier = Modifier.height(12.dp))
+            Box(
+                modifier = Modifier.fillMaxWidth().height(40.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                if (state == AssistantState.LISTENING) {
+                    Button(onClick = onStopListening) {
+                        Text(stringResource(R.string.voice_stop_speaking))
+                    }
                 }
             }
 

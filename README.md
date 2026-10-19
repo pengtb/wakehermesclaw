@@ -530,54 +530,73 @@ Hermes 侧封装：`integrations/hermes-mobile-bridge/capture_photo.py`（两段
   会回 `CAMERA_SERVICE_NOT_ARMED`**；相机被其它应用占用时拍照失败（如实报错，不伪装成功）。
 - 自编译包（不同包名）拿不到 Google Play 的 ML Kit 扫码模块，内置扫码可能不可用 —— 用深链二维码 + 系统相机即可绕过。
 
-### 6. 界面语言（已实现 / 待补齐）
+### 6. 界面语言
 
-判定标准：**翻译完整（946/946 条）才算"已实现"**，才会出现在「设置 → 显示语言」列表里；
-不完整的语言即使资源目录存在也先不进列表，避免界面里混着英文。
+判定标准：**翻译完整（1092/1092 条）才算"已实现"**，才会出现在「设置 → 显示语言」列表里；
+不完整的语言即使资源目录存在也不进列表，避免界面里混着英文。
 
-已实现（语言列表里可选）：
+全部已实现（语言列表里可选，10 种 + 跟随系统）：
 
 | 语言条目 | 资源目录 | 覆盖 |
 | --- | --- | --- |
 | 跟随系统（默认值，不写死语言） | — | 用系统语言；缺翻译时回落英文 |
-| 简体中文 | `res/values-zh-rCN` | 946/946（100%） |
-| 繁體中文 | `res/values-zh-rTW` | 946/946（100%） |
-| English | `res/values`（默认） | 946/946（100%） |
+| 简体中文 | `res/values-zh-rCN` | 1092/1092（100%） |
+| 繁體中文 | `res/values-zh-rTW` | 1092/1092（100%） |
+| English | `res/values`（默认） | 1092/1092（100%） |
+| 日本語 | `res/values-ja` | 1092/1092（100%） |
+| 한국어 | `res/values-ko` | 1092/1092（100%） |
+| Deutsch | `res/values-de` | 1092/1092（100%） |
+| Español | `res/values-es` | 1092/1092（100%） |
+| Français | `res/values-fr` | 1092/1092（100%） |
+| हिन्दी | `res/values-hi` | 1092/1092（100%） |
+| Русский | `res/values-ru` | 1092/1092（100%） |
 
-待补齐（资源已在包内，但翻译不完整，故未列入语言列表）：
-
-| 语言 | 资源目录 | 覆盖 | 缺 | 说明 |
-| --- | --- | --- | --- | --- |
-| 日本語 | `res/values-ja` | 908/946（96%） | 38 | 补齐后即可加回列表 |
-| 한국어 | `res/values-ko` | 908/946（96%） | 38 | 补齐后即可加回列表 |
-| Deutsch | `res/values-de` | 820/946（87%） | 126 | 上游只译到 87% |
-| Español | `res/values-es` | 820/946（87%） | 126 | 同上 |
-| Français | `res/values-fr` | 820/946（87%） | 126 | 同上 |
-| हिन्दी | `res/values-hi` | 820/946（87%） | 126 | 同上 |
-| Русский | `res/values-ru` | 820/946（87%） | 126 | 同上 |
-
-统计口径：`values/strings.xml` 的 `<string>` 条目数（946）。缺的条目在运行时自动回落英文，不会崩。
+统计口径：`values/strings.xml` 的 `<string>` 条目数（1092）。新增界面文案时同步 10 个目录，
+缺的条目在运行时会回落英文、不会崩，但会让该语言的覆盖率跌破 100%。
 
 生效流程：语言只在界面重新创建时读取「显示语言」，所以保存时若语言有变化会弹「重启以应用新语言？」，
 点「立即重启」清任务栈回主界面后整体生效；点「稍后」则下次新建界面时生效。
 
-### 7. 待实现 / 待测试
+### 7. 待测试 / 已知缺口
 
-| 项目 | 现状 | 待做 / 待验 | 依赖 |
-| --- | --- | --- | --- |
-| ja / ko 文案 | 各缺 38 条 | 补齐后可加回语言列表 | 翻译 |
-| de / es / fr / hi / ru 文案 | 各缺 126 条 | 补齐后可加回语言列表 | 翻译（工作量大，或改上游） |
-| 语言切换的即时刷新 | 已实现「保存 → 询问 → 立即重启」；**真机已验证**（Android 16，2026-10-15）：弹窗出现、点「立即重启」后整体换语言 | 无 | — |
-| 设置页保存后的收尾 | 统一到 `ui/settings/SettingsSaveSupport`；**真机已验证**（Android 16，2026-10-15）：改端口后保存，状态卡「目前在」更新为新端口，即"保存时按新配置重启桥接"生效 | 无 | — |
-| `camera.capture_photo` | 已实现：相机前台服务（`camera` 类型）+ 两段式；**真机已验证**（Android 16，2026-10-16）：批准即武装、拍完自动停服务、未武装时回 `CAMERA_SERVICE_NOT_ARMED` | 无 | — |
-- `screen.screenshot` | 已实现两段式（3.1）；**真机已验证**（Android 16，2026-10-15）：706×1568、约 78KB | 无 | — |
-| `apps.launch` | 回 `launched:true` 但被 Android 10+ 后台启动限制静默拦截 | 改用前台服务/`PendingIntent` 或明确报错 | 需要设计决策 |
-| `brightness.set` | 运行时不可见（`isAvailable=false`） | 引导授予 `WRITE_SETTINGS` 后再暴露 | 权限 |
-| 内置二维码扫描 | 自编译包拿不到 Google Play 的 ML Kit 模块 | 捆绑 zxing + CameraX，或维持「系统相机扫深链」 | 改动较大 |
-| 有副作用的 12 项能力 | `screen.tap/swipe/long_press/drag/back`、`media.*`、`notification.dismiss`、`sms.send`、`contacts.*`、`calendar.*` 只做了代码审查 | 需在受控场景逐项实测 | 会真的改手机状态 |
-| cron 修复 | 已在本 fork 分支 | 建议单独提 PR 回上游（`HermesCronSchedule.expr` 必填会让整个 cron 列表反序列化失败） | 上游评审 |
+**整条链路没跑过的（本轮新增，本机没有对端可测）**
 
-### 8. 许可与出处
+| 项目 | 状态 | 说明 |
+| --- | --- | --- |
+| OpenClaw 通道 | **未测试** | 本机只配了 Hermes 后端。网关聊天（`sendViaGateway` → `runtime.sendChat`）、语音走网关、以及「OpenClaw 网关 / Hermes HTTP」这个切换里网关那一半，都没有真机跑过；代码是接着 `nodeRuntime` 的既有实现写的，不代表验证过 |
+| 定时任务 | **未测试** | 定时任务页的列表 / 新建 / 编辑，以及这次新加的「脚本（可选）」行都没在真机上跑过。`/api/jobs` 需要 gateway API key，本机没做联调 |
+
+**已知缺口（有明确做法，只是没做或没验）**
+
+| 项目 | 现状 | 待做 / 待验 |
+| --- | --- | --- |
+| 有副作用的 12 项能力 | `screen.tap/swipe/long_press/drag/back`、`media.*`、`notification.dismiss`、`sms.send`、`contacts.*`、`calendar.*` 只做了代码审查 | 需在受控场景逐项实测（会真的改手机状态） |
+| `apps.launch` | 回 `launched:true`，但被 Android 10+ 的后台启动限制静默拦截 | 改用前台服务 / `PendingIntent`，或明确报错 |
+| `brightness.set` | 运行时不可见（`isAvailable=false`） | 引导授予 `WRITE_SETTINGS` 后再暴露 |
+| 内置二维码扫描 | 自编译包拿不到 Google Play 的 ML Kit 模块 | 捆绑 zxing + CameraX，或维持「系统相机扫深链」 |
+| ja / ko 文案 | 各缺 38 条 | 补齐后可加回「显示语言」列表 |
+| de / es / fr / hi / ru 文案 | 各缺 126 条 | 同上（工作量大） |
+
+### 8. v2.5.0 新增（语音链路 / 提示词 / 定时任务 / 主题）
+
+| 位置 | 改动 |
+| --- | --- |
+| `speech/asr/*` | 语音识别多后端：系统 / OpenAI 兼容批式 / FunASR 流式 / 华为 HMS（ML Kit）。HMS 侧补了 `NetworkKit.init`、final 帧 NPE 的客户端补尾（watchdog）、关掉 Ha 上报避免对话后崩溃；百度后端整套删除 |
+| `speech/HmsTtsProvider.kt`（新增） | 华为 HMS 云端合成（`TTS_ONLINE_MODE`，`Female-zh` / `Female-en`），长文本按 450 字切分；设备端方案因动态模块缺失放弃 |
+| `speech/TTSManager.kt`, `TTSEngineUtils.kt` | 删掉与「OpenAI 兼容」重复的 OpenAI 条目；本地 TTS 未显式选引擎时优先 Google TTS |
+| `backend/PromptDefaults.kt`（新增）, `backend/VoiceContext.kt`（新增） | 语音 / 文字聊天各一套系统提示词，可在设置里改、留空回落默认；语音请求额外带上时间、位置、电量、网络、屏幕状态 |
+| `backend/HermesApiServerClient.kt` | Runs API 模式下把 system 消息放进 `instructions` 字段（`input` 里的 system 角色服务端不读，之前提示词等于没发） |
+| `data/SettingsRepository.kt` | 「语音会话连接」没手动设置过时跟随主后端（网关 → 网关，Hermes / OpenClaw API → HTTP）；新增 `voicePrompt` / `chatPrompt` |
+| `MainActivity.kt` | 主页「语音对话」顶部放一份连接方式切换（两个 chip）；点语音前拦「主后端 Hermes + 连接方式网关」这种必然失败的组合；首页按钮前置检查与弹窗 |
+| `service/VoiceTileService.kt`（新增）, `VoiceLaunchActivity.kt`（新增） | 快捷设置磁贴、`VOICE_COMMAND` / `ASSIST` 跳板、静态快捷方式 `voice_chat` |
+| `service/VoiceRecovery.kt`（新增） | 语音服务绑定的三级自愈：确认默认助理 → 重新发 `ACTION_ASSIST` 等待 `onReady` → 重启进程 |
+| `ui/cron/CronScreen.kt`, `backend/HermesConfigApi.kt` | 定时任务编辑框加「脚本（可选）」行（相对 `HERMES_HOME/scripts/`），新建 / 编辑都会带上 |
+| `ui/backend/*`, `ui/SetupGuideScreen.kt`, `ui/theme/Color.kt` | 深色模式：后端管理两个页面改用 `OpenClawAssistantTheme`；设置向导自带那套浅色 onboarding 配色补了深色版，按系统切换 |
+| `res/values-*`（10 个目录） | 补齐 742 条翻译（ja 44、ko 43、de/es/fr/hi/ru 各 131），10 种语言全部 1092/1092；「设置 → 显示语言」放开 日本語 / 한국어 / Deutsch / Español / Français / हिन्दी / Русский |
+| `speech/ExitPhrases.kt`（新增）, `SettingsRepository` | 语音退出词：说中即结束对话；默认词按界面语言取，可在设置-唤醒词里自定义 |
+| `ui/HomePreflight.kt`, `ui/diag/PreflightCheckSection.kt`（新增） | 点按钮前的检查集中到这里，诊断页也复用同一套（含「（可选）」建议项） |
+
+### 9. 许可与出处
 
 上游为 **MIT**（[`LICENSE`](LICENSE)，Copyright (c) 2026 yuga-hashimoto）；本 fork 保留原许可与版权声明，
 新增改动同样以 MIT 发布。第三方组件与随包资源见 [`THIRD_PARTY_LICENSES.md`](THIRD_PARTY_LICENSES.md)。

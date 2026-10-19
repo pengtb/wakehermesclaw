@@ -14,7 +14,7 @@
     <string name="more_options">더 보기</string>
     <string name="no_url">URL 없음</string>
     <string name="backend_type_hermes_with_url">Hermes Agent - %1$s</string>
-    <string name="backend_type_openclaw_with_host">OpenClaw - %1$s:%2$s</string>
+    <string name="backend_type_openclaw_with_host">OpenClaw 게이트웨이 - %1$s:%2$s</string>
     <string name="backend_type_openclaw_api_with_url">OpenClaw API - %1$s</string>
     <string name="backend_type">유형</string>
     <string name="backend_display_name">표시 이름</string>
@@ -377,7 +377,6 @@
     <string name="google_app_setting_desc">Google 앱 열기 → 프로필 탭 → 설정 → Google Assistant → 일반 → \'Google Assistant\' 끄기를 선택하세요.</string>
     <string name="refresh_binding_title">바인딩 새로고침</string>
     <string name="refresh_binding_desc">상태가 \'활성\'이지만 작동하지 않는 경우, \'디지털 어시스턴트 앱\'을 \'없음\'으로 변경한 후 다시 \'WakeHermesClaw\'로 변경해보세요.</string>
-    <string name="debug_force_start">디버그: 세션 강제 시작</string>
     
     <!-- Settings Screen -->
     <string name="connection">연결</string>
@@ -522,7 +521,7 @@
     <string name="select_chat_backend_desc">이 채팅을 보낼 대상을 선택하세요.</string>
     <string name="chat_type_openclaw">OpenClaw</string>
     <string name="chat_type_hermes">Hermes Agent</string>
-    <string name="chat_type_gateway">OpenClaw</string>
+    <string name="chat_type_gateway">OpenClaw 게이트웨이 채팅</string>
     <string name="chat_type_http">OpenClaw</string>
 
     <!-- Session List -->
@@ -635,7 +634,7 @@
     <string name="setup_required_hint">설정에서 연결을 구성해주세요</string>
 
     <!-- Gateway Settings -->
-    <string name="settings_gateway_title">OpenClaw 연결</string>
+    <string name="settings_gateway_title">OpenClaw 게이트웨이 연결</string>
     <string name="disconnected">연결 끊김</string>
     <string name="offline">오프라인</string>
     <string name="gateway_discovery_active">검색 중...</string>
@@ -657,8 +656,8 @@
     <string name="connect">연결</string>
     <string name="gateway_foreground_service">포그라운드 서비스</string>
     <string name="gateway_foreground_desc">백그라운드에서 계속 실행</string>
-    <string name="gateway_use_node_chat">OpenClaw 채팅 사용</string>
-    <string name="gateway_use_node_chat_desc">OpenClaw를 통해 채팅 라우팅</string>
+    <string name="gateway_use_node_chat">OpenClaw 게이트웨이 채팅 사용</string>
+    <string name="gateway_use_node_chat_desc">OpenClaw 게이트웨이를 통해 채팅 라우팅</string>
 
     <!-- Legacy Settings -->
     <string name="settings_legacy_title">OpenClaw API</string>
@@ -720,7 +719,7 @@
     <string name="agents_fetch_failed">연결되었으나 에이전트를 불러오지 못했습니다</string>
 
     <!-- Wake Word Mode (Settings) -->
-    <string name="wake_word_node_title">OpenClaw Wake Word</string>
+    <string name="wake_word_node_title">OpenClaw 게이트웨이 웨이크 워드</string>
     <string name="wake_word_node_desc">Wake Word를 감지하고 OpenClaw에 요청을 보냅니다.</string>
     <string name="wake_word_gateway_desc">이 기기가 Wake Word를 듣고 OpenClaw에 명령을 보냅니다. 어시스턴트를 활성화하기 위해 말할 단어를 입력하세요.</string>
     <string name="wake_word_node_foreground">앱 열림</string>
@@ -737,7 +736,7 @@
 
     <!-- Hardcoded strings extracted to resources -->
     <string name="connection_settings">연결 설정</string>
-    <string name="tab_gateway">OpenClaw</string>
+    <string name="tab_gateway">OpenClaw 게이트웨이</string>
     <string name="tab_http">OpenClaw API</string>
     <string name="gateway_configuration">OpenClaw 설정</string>
     <string name="http_api_configuration">OpenClaw API 설정</string>
@@ -746,8 +745,8 @@
     <string name="http_ignore_ssl_errors_warning">⚠️ 보안 위험: SSL 검증을 비활성화하면 중간자 공격(MITM)에 취약해집니다. 동일한 네트워크의 공격자가 데이터를 가로채거나 변조할 수 있습니다. 네트워크를 완전히 신뢰하고 적절한 인증서를 설치할 수 없는 경우에만 활성화하세요.</string>
     <string name="wakeword_connection_type">음성 세션 연결</string>
     <string name="wakeword_connection_type_desc">Wake Word 없이 시작된 음성 세션(예: 홈 버튼 길게 누르기 또는 헤드셋 버튼)에 사용할 백엔드를 선택하세요.</string>
-    <string name="wakeword_use_gateway">OpenClaw</string>
-    <string name="wakeword_use_http">Hermes Agent</string>
+    <string name="wakeword_use_gateway">OpenClaw 게이트웨이</string>
+    <string name="wakeword_use_http">Hermes HTTP</string>
     <string name="enter_session_name">세션 이름 입력</string>
     <string name="session_name_optional">세션 이름 (선택사항)</string>
     <string name="running_tools">도구 실행 중</string>
@@ -1065,7 +1064,7 @@
     <string name="asr_section_title">음성 인식</string>
     <string name="asr_engine_hms">화웨이 HMS(ML Kit)</string>
     <string name="asr_hms_api_key_label">API Key</string>
-    <string name="asr_hint_hms">기기의 화웨이 인식 서비스를 사용해 말하는 동안 글자가 나옵니다. HMS Core와 본인이 신청한 앱 API Key가 필요합니다</string>
+    <string name="asr_hint_hms">기기의 화웨이 인식 서비스를 사용해 말하는 동안 글자가 나옵니다. HMS Core와 본인이 신청한 앱 API Key가 필요합니다. 중국어와 영어만 지원합니다.</string>
     <string name="asr_error_no_key">인증 정보가 설정되지 않았습니다</string>
     <string name="asr_error_hms_unsupported">이 CPU 아키텍처는 화웨이 인식을 지원하지 않습니다</string>
     <string name="asr_error_hms_auth"> (API Key, HMS Core 및 할당량을 확인하세요)</string>
@@ -1107,7 +1106,7 @@
     <string name="error_stage_config">설정</string>
     <string name="preflight_voice_not_bound">음성 서비스가 시스템의 오래된 바인딩에 묶여 있습니다. 자동 재연결과 자동 재시작을 시도했지만 실패했습니다. \'앱 재시작\'을 누르거나 휴대폰을 재부팅하세요.</string>
     <string name="tts_provider_hms">화웨이 HMS(ML Kit)</string>
-    <string name="tts_provider_hms_description">Huawei HMS ML Kit 클라우드 합성. 네트워크와 AGC API 키가 필요하며, 월 100만 자까지 무료입니다.</string>
+    <string name="tts_provider_hms_description">Huawei HMS ML Kit 클라우드 합성. 네트워크와 AGC API 키가 필요하며, 월 100만 자까지 무료입니다. 중국어와 영어만 지원합니다.</string>
     <string name="tts_error_hms_no_key">화웨이 음성 합성에는 API 키가 필요합니다: 설정 → 음성 모드 → 음성 출력에서 입력하세요.</string>
     <string name="tts_hms_api_key_label">API Key</string>
     <string name="tts_hms_api_key_note">Huawei 클라우드 합성에 사용합니다(음성 인식과 같은 AGC API 키). 클라우드 합성은 월 100만 자까지 무료입니다.</string>
@@ -1150,4 +1149,73 @@
     <string name="qs_tile_already_added_hint">타일이 이미 빠른 설정에 있습니다. 마지막 페이지로 넘기거나 편집에서 앞으로 옮기세요</string>
     <string name="voice_restarting">음성 서비스가 멈춰 앱을 다시 시작해 복구합니다…</string>
     <string name="preflight_action_restart">앱 재시작</string>
+    <string name="preflight_panel_title">음성·채팅 사전 점검</string>
+    <string name="preflight_panel_desc">홈의 \'음성 대화\'·\'채팅 열기\' 전에 하는 점검과 같습니다</string>
+    <string name="preflight_all_pass">모두 통과했습니다</string>
+    <string name="preflight_refresh">다시 점검</string>
+    <string name="nova_shortcut_title">최종 수단: Nova 제스처 + 바로가기</string>
+    <string name="nova_shortcut_desc">일부 ROM은 시스템 제스처와 Nova의 \'음성 어시스턴트\' 동작을 모두 가로채서 이 앱에 도달하지 못합니다. 그럴 때는 Nova에서 설정 → 제스처 → 제스처 선택 → 동작 → 바로가기 → \'음성 대화\'를 고르세요. 이 경로는 시스템 어시스턴트를 거치지 않습니다.</string>
+    <string name="terminal_dashboard_off">Hermes dashboard가 실행 중이 아닙니다(%1$s). 컴퓨터에서 `hermes dashboard`를 실행하고(터미널은 --tui 필요), 오른쪽 위의 다시 연결을 누르세요.</string>
+    <string name="prompt_settings_title">시스템 프롬프트</string>
+    <string name="prompt_voice_label">음성 대화 프롬프트</string>
+    <string name="prompt_chat_label">텍스트 채팅 프롬프트</string>
+    <string name="prompt_hint">매 요청마다 시스템 메시지로 함께 전송됩니다. 자유롭게 수정하고 \'기본값 복원\'으로 내장 내용으로 돌아갈 수 있습니다.</string>
+    <string name="prompt_reset">기본값 복원</string>
+    <string name="voice_hermes_gateway_title">음성이 전송되지 않습니다</string>
+    <string name="voice_hermes_gateway_message">기본 백엔드는 Hermes(HTTP 전용)인데 음성 연결 방식이 OpenClaw 게이트웨이로 설정되어 있습니다. 이대로면 음성이 전송되지 않습니다. 설정 → 웨이크 워드에서 \'HTTP 사용\'으로 바꾸세요.</string>
+    <string name="voice_hermes_gateway_fix">설정 열기</string>
+    <string name="voice_target_not_configured">선택한 백엔드(%1$s)가 설정되지 않았습니다. 설정 → 백엔드에서 추가하세요.</string>
+    <string name="cron_job_script">스크립트(선택)</string>
+    <string name="cron_job_script_hint">Hermes의 scripts/ 폴더 안 파일 이름 (예: daily_report.py)</string>
+    <string name="wakeword_use_openclaw_http">OpenClaw HTTP</string>
+    <string name="bridge_http_only_hint">HTTP 모드(Hermes / OpenClaw API) 전용입니다.</string>
+    <string name="bridge_gateway_redundant_title">기본 백엔드가 OpenClaw 게이트웨이입니다</string>
+    <string name="bridge_gateway_redundant_message">게이트웨이는 이미 인바운드 채널이라 휴대폰 기능(카메라, 화면, SMS 등)을 직접 호출할 수 있습니다. 브리지를 켜면 포트와 승인 체계가 하나 더 늘어날 뿐 이득이 없습니다. 그래도 켤까요?</string>
+    <string name="bridge_gateway_redundant_continue">그래도 켜기</string>
+    <string name="voice_exit_phrases_title">종료 단어</string>
+    <string name="voice_exit_phrases_desc">이 단어를 말하면 음성 대화가 바로 끝납니다. 쉼표나 줄바꿈으로 구분하며, 비우면 기본값을 사용합니다.</string>
+    <string name="exit_phrases_default">종료,종료해,그만,끝</string>
+    <string name="backend_terminal_section">터미널(Hermes dashboard)</string>
+    <string name="backend_terminal_section_help">앱 내 터미널은 API 서버가 아니라 WebSocket(/api/pty)으로 Hermes dashboard에 연결합니다. dashboard에 접속할 수 있는 URL과 세션 토큰(HERMES_DASHBOARD_SESSION_TOKEN 또는 dashboard 페이지의 __HERMES_SESSION_TOKEN__)을 입력하세요.</string>
+    <string name="backend_terminal_url">터미널 URL(예: https://host:10000)</string>
+    <string name="backend_terminal_token">Dashboard 세션 토큰</string>
+    <string name="saved_bridge_restarted">저장했습니다. 새 설정으로 모바일 브리지를 다시 시작했습니다.</string>
+    <string name="setup_guide_paste_payload_label">또는 페어링 페이로드 붙여넣기</string>
+    <string name="setup_guide_paste_payload_hint">agentvoice-pair가 출력한 JSON 페이로드 또는 agentvoice:// 링크</string>
+    <string name="setup_guide_paste_payload_apply">붙여넣은 페이로드 적용</string>
+    <string name="setup_guide_paste_payload_invalid">페어링 페이로드가 아닙니다. agentvoice-pair가 출력한 JSON 페이로드나 agentvoice:// 링크를 붙여넣으세요.</string>
+    <string name="av_pair_desktop_command_label">컴퓨터에서 다음을 실행하세요:</string>
+    <string name="av_pair_desktop_fallback_label">…또는 도구 없이 직접 페어링:</string>
+    <string name="av_desktop_os_windows">Windows</string>
+    <string name="av_desktop_os_unix">Linux / macOS</string>
+    <string name="av_setup_install_win_note">agentvoice-pair.ps1과 agentvoice-pair.cmd 래퍼를 설치합니다(PowerShell 사용, Python 불필요).</string>
+    <string name="av_setup_install_unix_note">bash 버전을 설치합니다(bash/curl/awk/od/gzip만 필요하며 Python은 필요 없습니다).</string>
+    <string name="av_setup_skip">나중에 하기</string>
+    <string name="settings_run_setup_wizard">설정 마법사 다시 실행</string>
+    <string name="settings_run_setup_wizard_desc">최초 실행 안내를 다시 엽니다: 연결 방식, 페어링 QR, 권한, 최종 확인.</string>
+    <string name="add">추가</string>
+    <string name="qr_scan_help_title">앱 내 스캔을 사용할 수 없습니다</string>
+    <string name="qr_scan_help_module">이 빌드는 Google Play 서비스의 QR 모듈을 사용하는데, 이 앱에는 해당 모듈이 설치되어 있지 않아 내장 스캐너를 시작할 수 없습니다. 컴퓨터에서 딥링크 QR을 생성한 뒤(Windows는 agentvoice-pair -DeepLinkQr, Linux/macOS는 agentvoice-pair.sh --deeplink-qr) 휴대폰 카메라 앱으로 스캔하세요. agentvoice:// 링크가 이 앱을 열고 같은 설정을 가져옵니다.</string>
+    <string name="qr_scan_help_permission">스캔에는 카메라 권한이 필요합니다. 설정 → 앱 → WakeHermesClaw → 권한에서 허용한 뒤 다시 시도하거나, 휴대폰 카메라 앱으로 QR을 스캔하세요. 그러면 agentvoice:// 링크를 통해 이 앱이 바로 열립니다.</string>
+    <string name="qr_scan_help_ok">확인</string>
+    <string name="qr_scan_help_unknown">이 QR 코드는 WakeHermesClaw 페어링 코드가 아닙니다. 컴퓨터에서 agentvoice-pair가 출력한 페어링 QR(JSON 페이로드 또는 agentvoice:// 딥링크)을 스캔하세요.</string>
+    <string name="av_import_received_label">받은 링크(키/토큰 가림):</string>
+    <string name="language_restart_title">새 언어를 적용하려면 다시 시작할까요?</string>
+    <string name="language_restart_message">표시 언어가 저장되었습니다. 지금 다시 시작해 적용할까요? 다른 설정은 어느 쪽을 선택해도 이미 저장되어 있습니다.</string>
+    <string name="language_restart_now">지금 다시 시작</string>
+    <string name="language_restart_later">나중에</string>
+    <string name="av_bridge_now_running">현재: 포트 %1$d (%2$s)</string>
+    <string name="av_bridge_now_stopped">현재: 실행 중 아님</string>
+    <string name="av_bridge_pending">다시 시작 후: 포트 %1$d (%2$s)</string>
+    <string name="home_connection_section_title">연결</string>
+    <string name="diag_stt_not_found">음성 인식 서비스를 찾을 수 없습니다. Google 앱이 설치되어 있는지 확인하세요.</string>
+    <string name="diag_action_open_store">스토어 열기</string>
+    <string name="diag_tts_hidden">Google TTS가 설치되어 있지만 시스템에서 숨겨져 있습니다. MIUI에서 흔한 문제입니다.</string>
+    <string name="diag_tts_null">TTS 엔진을 초기화할 수 없습니다(엔진이 null).</string>
+    <string name="diag_action_fix_in_settings">설정에서 수정</string>
+    <string name="diag_tts_lang_missing">%2$s에 %1$s 음성 데이터가 없습니다.</string>
+    <string name="diag_action_manage_data">데이터 관리</string>
+    <string name="diag_tts_switch_google">현재 %1$s을(를) 사용 중입니다. 더 나은 지원을 위해 Google로 전환하세요.</string>
+    <string name="diag_action_select_google">Google 선택</string>
+    <string name="diag_engine_default">시스템 기본값</string>
 </resources>

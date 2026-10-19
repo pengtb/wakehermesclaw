@@ -232,6 +232,35 @@ private fun canInstallUnknownApps(context: Context): Boolean {
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
+/**
+ * 设置向导自带一套浅色 onboarding 配色（渐变 + 白卡片），和应用的深色主题是分开的。
+ * 这里按系统深浅色切换同一套配色的两个版本，避免深色模式下整页仍然是白的。
+ */
+private val onboardingAccent: Color
+    @Composable get() =
+        if (androidx.compose.foundation.isSystemInDarkTheme()) OnboardingAccentDark
+        else OnboardingGradientMid
+
+private val onboardingSurface: Color
+    @Composable get() =
+        if (androidx.compose.foundation.isSystemInDarkTheme()) OnboardingSurfaceDark
+        else OnboardingSurface
+
+private val onboardingBorder: Color
+    @Composable get() =
+        if (androidx.compose.foundation.isSystemInDarkTheme()) OnboardingBorderDark
+        else OnboardingBorder
+
+private val onboardingTextPrimaryColor: Color
+    @Composable get() =
+        if (androidx.compose.foundation.isSystemInDarkTheme()) OnboardingTextPrimaryDark
+        else OnboardingTextPrimary
+
+private val onboardingTextSecondaryColor: Color
+    @Composable get() =
+        if (androidx.compose.foundation.isSystemInDarkTheme()) OnboardingTextSecondaryDark
+        else OnboardingTextSecondary
+
 @Composable
 fun SetupGuideScreen(
     settings: SettingsRepository,
@@ -260,7 +289,11 @@ fun SetupGuideScreen(
     val totalSteps = SetupStep.entries.size
 
     val onboardingGradient = Brush.verticalGradient(
-        colors = listOf(OnboardingGradientStart, OnboardingGradientMid, OnboardingGradientEnd)
+        colors = if (androidx.compose.foundation.isSystemInDarkTheme()) {
+            listOf(OnboardingGradientStartDark, onboardingAccent, OnboardingGradientEndDark)
+        } else {
+            listOf(OnboardingGradientStart, onboardingAccent, OnboardingGradientEnd)
+        }
     )
 
     Scaffold(
@@ -270,15 +303,15 @@ fun SetupGuideScreen(
             TopAppBar(
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color.Transparent,
-                    titleContentColor = OnboardingTextPrimary,
-                    navigationIconContentColor = OnboardingTextPrimary
+                    titleContentColor = onboardingTextPrimaryColor,
+                    navigationIconContentColor = onboardingTextPrimaryColor
                 ),
                 title = {
                     Column {
                         Text(
                             text = stringResource(R.string.setup_guide_first_run),
                             style = MaterialTheme.typography.labelSmall,
-                            color = OnboardingGradientMid
+                            color = onboardingAccent
                         )
                         Text(
                             text = stringResource(R.string.setup_guide_step_format, currentStep.index, totalSteps),
@@ -313,8 +346,8 @@ fun SetupGuideScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
                 .padding(16.dp)
-                .background(OnboardingSurface, RoundedCornerShape(24.dp))
-                .border(1.dp, OnboardingBorder, RoundedCornerShape(24.dp))
+                .background(onboardingSurface, RoundedCornerShape(24.dp))
+                .border(1.dp, onboardingBorder, RoundedCornerShape(24.dp))
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -456,13 +489,13 @@ private fun WelcomeStep(onNext: () -> Unit, onSkip: () -> Unit) {
                 imageVector = Icons.Default.Launch,
                 contentDescription = stringResource(R.string.setup_guide_title),
                 modifier = Modifier.size(80.dp),
-                tint = OnboardingGradientMid
+                tint = onboardingAccent
             )
             Spacer(modifier = Modifier.height(24.dp))
             Text(
                 text = stringResource(R.string.setup_guide_title),
                 style = MaterialTheme.typography.headlineMedium,
-                color = OnboardingTextPrimary,
+                color = onboardingTextPrimaryColor,
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center,
                 lineHeight = 40.sp
@@ -481,7 +514,7 @@ private fun WelcomeStep(onNext: () -> Unit, onSkip: () -> Unit) {
             onClick = onNext,
             modifier = Modifier.fillMaxWidth().height(56.dp),
             shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = OnboardingGradientMid)
+            colors = ButtonDefaults.buttonColors(containerColor = onboardingAccent)
         ) {
             Text(stringResource(R.string.setup_guide_next), fontSize = 18.sp)
         }
@@ -490,7 +523,7 @@ private fun WelcomeStep(onNext: () -> Unit, onSkip: () -> Unit) {
             Text(
                 text = stringResource(R.string.av_setup_skip),
                 style = MaterialTheme.typography.bodySmall,
-                color = OnboardingTextSecondary,
+                color = onboardingTextSecondaryColor,
                 textDecoration = TextDecoration.Underline,
             )
         }
@@ -507,10 +540,10 @@ private fun BulletPoint(text: String) {
             Icons.Default.Check,
             contentDescription = null,
             modifier = Modifier.size(24.dp).padding(top = 2.dp),
-            tint = OnboardingGradientMid
+            tint = onboardingAccent
         )
         Spacer(modifier = Modifier.width(12.dp))
-        Text(text = text, style = MaterialTheme.typography.bodyLarge, color = OnboardingTextPrimary)
+        Text(text = text, style = MaterialTheme.typography.bodyLarge, color = onboardingTextPrimaryColor)
     }
 }
 
@@ -551,7 +584,7 @@ private fun ConnectionStep(
         Text(
             text = stringResource(R.string.setup_guide_connection_title),
             style = MaterialTheme.typography.headlineSmall,
-            color = OnboardingTextPrimary,
+            color = onboardingTextPrimaryColor,
             fontWeight = FontWeight.Bold
         )
         Spacer(modifier = Modifier.height(8.dp))
@@ -559,7 +592,7 @@ private fun ConnectionStep(
         Text(
             text = stringResource(R.string.av_setup_welcome_body),
             style = MaterialTheme.typography.bodyMedium,
-            color = OnboardingTextSecondary
+            color = onboardingTextSecondaryColor
         )
         Spacer(modifier = Modifier.height(24.dp))
 
@@ -589,13 +622,13 @@ private fun ConnectionStep(
             Text(
                 text = stringResource(R.string.setup_guide_qr_scan_title),
                 style = MaterialTheme.typography.titleMedium,
-                color = OnboardingTextPrimary,
+                color = onboardingTextPrimaryColor,
                 fontWeight = FontWeight.Bold
             )
             Text(
                 text = stringResource(R.string.setup_guide_qr_scan_cmd_label),
                 style = MaterialTheme.typography.bodySmall,
-                color = OnboardingTextSecondary
+                color = onboardingTextSecondaryColor
             )
             Spacer(modifier = Modifier.height(8.dp))
             DesktopOsSelector(
@@ -650,9 +683,9 @@ private fun ConnectionStep(
                 modifier = Modifier.fillMaxWidth().height(56.dp),
                 shape = RoundedCornerShape(16.dp),
                 colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
-                    contentColor = OnboardingGradientMid
+                    contentColor = onboardingAccent
                 ),
-                border = androidx.compose.foundation.BorderStroke(1.dp, OnboardingGradientMid)
+                border = androidx.compose.foundation.BorderStroke(1.dp, onboardingAccent)
             ) {
                 Icon(Icons.Default.QrCodeScanner, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
@@ -694,15 +727,15 @@ private fun ConnectionStep(
             // When QR contains only bootstrapToken, prompt for password/token
             if (hasBootstrapOnly) {
                 val credFieldColors = OutlinedTextFieldDefaults.colors(
-                    focusedTextColor = OnboardingTextPrimary,
-                    unfocusedTextColor = OnboardingTextPrimary,
-                    focusedLabelColor = OnboardingGradientMid,
-                    unfocusedLabelColor = OnboardingTextSecondary,
-                    focusedBorderColor = OnboardingGradientMid,
-                    unfocusedBorderColor = OnboardingBorder,
-                    cursorColor = OnboardingGradientMid,
-                    focusedPlaceholderColor = OnboardingTextSecondary,
-                    unfocusedPlaceholderColor = OnboardingTextSecondary,
+                    focusedTextColor = onboardingTextPrimaryColor,
+                    unfocusedTextColor = onboardingTextPrimaryColor,
+                    focusedLabelColor = onboardingAccent,
+                    unfocusedLabelColor = onboardingTextSecondaryColor,
+                    focusedBorderColor = onboardingAccent,
+                    unfocusedBorderColor = onboardingBorder,
+                    cursorColor = onboardingAccent,
+                    focusedPlaceholderColor = onboardingTextSecondaryColor,
+                    unfocusedPlaceholderColor = onboardingTextSecondaryColor,
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 com.openclaw.assistant.ui.components.CredentialHintCard()
@@ -756,7 +789,7 @@ private fun ConnectionStep(
             Text(
                 text = readyText,
                 style = MaterialTheme.typography.bodySmall,
-                color = if (configuredBackendCount > 0 || pairingStatus != null) MaterialTheme.colorScheme.primary else OnboardingTextSecondary,
+                color = if (configuredBackendCount > 0 || pairingStatus != null) MaterialTheme.colorScheme.primary else onboardingTextSecondaryColor,
                 modifier = Modifier.padding(top = 8.dp, bottom = 8.dp)
             )
         } else {
@@ -776,7 +809,7 @@ private fun ConnectionStep(
             enabled = canContinue,
             modifier = Modifier.fillMaxWidth().height(56.dp),
             shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = OnboardingGradientMid)
+            colors = ButtonDefaults.buttonColors(containerColor = onboardingAccent)
         ) {
             Text(
                 stringResource(
@@ -804,23 +837,23 @@ private fun AgentVoiceUnifiedPairingContent(
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Card(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = OnboardingSurface),
-            border = androidx.compose.foundation.BorderStroke(1.dp, OnboardingBorder)
+            colors = CardDefaults.cardColors(containerColor = onboardingSurface),
+            border = androidx.compose.foundation.BorderStroke(1.dp, onboardingBorder)
         ) {
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(
                     stringResource(R.string.av_pairing_card_title),
                     style = MaterialTheme.typography.titleMedium,
-                    color = OnboardingTextPrimary,
+                    color = onboardingTextPrimaryColor,
                     fontWeight = FontWeight.Bold
                 )
-                Text(stringResource(R.string.av_pairing_card_step1), style = MaterialTheme.typography.bodyMedium, color = OnboardingTextPrimary)
+                Text(stringResource(R.string.av_pairing_card_step1), style = MaterialTheme.typography.bodyMedium, color = onboardingTextPrimaryColor)
                 DesktopOsSelector(os = desktopOs, onChange = { desktopOs = it })
                 CommandBlock(AgentVoiceCommands.install(desktopOs))
-                Text(stringResource(R.string.av_pairing_card_step2), style = MaterialTheme.typography.bodyMedium, color = OnboardingTextPrimary)
+                Text(stringResource(R.string.av_pairing_card_step2), style = MaterialTheme.typography.bodyMedium, color = onboardingTextPrimaryColor)
                 CommandBlock(AgentVoiceCommands.run(desktopOs))
-                Text(stringResource(R.string.av_pairing_card_step3), style = MaterialTheme.typography.bodyMedium, color = OnboardingTextPrimary)
-                Text(stringResource(R.string.av_pairing_card_note), style = MaterialTheme.typography.bodySmall, color = OnboardingTextSecondary)
+                Text(stringResource(R.string.av_pairing_card_step3), style = MaterialTheme.typography.bodyMedium, color = onboardingTextPrimaryColor)
+                Text(stringResource(R.string.av_pairing_card_note), style = MaterialTheme.typography.bodySmall, color = onboardingTextSecondaryColor)
                 if (configuredBackendCount > 0) {
                     AssistChip(
                         onClick = {},
@@ -838,7 +871,7 @@ private fun AgentVoiceUnifiedPairingContent(
                     Text(
                         stringResource(R.string.setup_guide_paste_payload_label),
                         style = MaterialTheme.typography.bodyMedium,
-                        color = OnboardingTextPrimary,
+                        color = onboardingTextPrimaryColor,
                         fontWeight = FontWeight.SemiBold
                     )
                     OutlinedTextField(
@@ -917,8 +950,8 @@ private fun PairingScanButton(
         },
         modifier = modifier,
         shape = RoundedCornerShape(14.dp),
-        colors = ButtonDefaults.outlinedButtonColors(contentColor = OnboardingGradientMid),
-        border = androidx.compose.foundation.BorderStroke(1.dp, OnboardingGradientMid)
+        colors = ButtonDefaults.outlinedButtonColors(contentColor = onboardingAccent),
+        border = androidx.compose.foundation.BorderStroke(1.dp, onboardingAccent)
     ) {
         Icon(Icons.Default.QrCodeScanner, contentDescription = null)
         Spacer(modifier = Modifier.width(8.dp))
@@ -1007,14 +1040,14 @@ private fun PermissionsStep(onNext: () -> Unit) {
         Text(
             text = stringResource(R.string.setup_guide_permissions_title),
             style = MaterialTheme.typography.headlineSmall,
-            color = OnboardingTextPrimary,
+            color = onboardingTextPrimaryColor,
             fontWeight = FontWeight.Bold
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
             text = stringResource(R.string.setup_guide_permissions_desc),
             style = MaterialTheme.typography.bodyLarge,
-            color = OnboardingTextSecondary
+            color = onboardingTextSecondaryColor
         )
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -1039,7 +1072,7 @@ private fun PermissionsStep(onNext: () -> Unit) {
         Text(
             text = stringResource(R.string.permission_special_access),
             style = MaterialTheme.typography.titleMedium,
-            color = OnboardingTextPrimary,
+            color = onboardingTextPrimaryColor,
             fontWeight = FontWeight.Bold
         )
         Spacer(modifier = Modifier.height(8.dp))
@@ -1089,7 +1122,7 @@ private fun PermissionsStep(onNext: () -> Unit) {
             onClick = onNext,
             modifier = Modifier.fillMaxWidth().height(56.dp),
             shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = OnboardingGradientMid)
+            colors = ButtonDefaults.buttonColors(containerColor = onboardingAccent)
         ) {
             Text(stringResource(R.string.setup_guide_next), fontSize = 18.sp)
         }
@@ -1120,7 +1153,7 @@ private fun PermissionItem(
             modifier = Modifier
                 .size(48.dp)
                 .background(
-                    if (isGranted) OnboardingGradientMid.copy(alpha = 0.2f) else OnboardingBorder,
+                    if (isGranted) onboardingAccent.copy(alpha = 0.2f) else onboardingBorder,
                     CircleShape
                 ),
             contentAlignment = Alignment.Center
@@ -1128,13 +1161,13 @@ private fun PermissionItem(
             Icon(
                 icon,
                 contentDescription = null,
-                tint = if (isGranted) OnboardingGradientMid else OnboardingTextSecondary
+                tint = if (isGranted) onboardingAccent else onboardingTextSecondaryColor
             )
         }
         Spacer(modifier = Modifier.width(16.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(text = name, fontWeight = FontWeight.Bold, color = OnboardingTextPrimary)
-            Text(text = desc, style = MaterialTheme.typography.bodySmall, color = OnboardingTextSecondary)
+            Text(text = name, fontWeight = FontWeight.Bold, color = onboardingTextPrimaryColor)
+            Text(text = desc, style = MaterialTheme.typography.bodySmall, color = onboardingTextSecondaryColor)
         }
         if (isGranted) {
             Icon(Icons.Default.CheckCircle, contentDescription = stringResource(R.string.permission_status_granted), tint = Color.Green)
@@ -1246,14 +1279,14 @@ private fun FinalCheckStep(
         Text(
             text = stringResource(R.string.setup_guide_final_check_title),
             style = MaterialTheme.typography.headlineSmall,
-            color = OnboardingTextPrimary,
+            color = onboardingTextPrimaryColor,
             fontWeight = FontWeight.Bold
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
             text = stringResource(R.string.setup_guide_final_check_desc),
             style = MaterialTheme.typography.bodyLarge,
-            color = OnboardingTextPrimary,
+            color = onboardingTextPrimaryColor,
             textAlign = TextAlign.Center
         )
 
@@ -1302,24 +1335,24 @@ private fun FinalCheckStep(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(OnboardingGradientMid.copy(alpha = 0.1f), RoundedCornerShape(8.dp))
-                .border(1.dp, OnboardingGradientMid.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                .background(onboardingAccent.copy(alpha = 0.1f), RoundedCornerShape(8.dp))
+                .border(1.dp, onboardingAccent.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
                 .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(Icons.Default.Shield, contentDescription = null, tint = OnboardingGradientMid)
+            Icon(Icons.Default.Shield, contentDescription = null, tint = onboardingAccent)
             Spacer(modifier = Modifier.width(12.dp))
             Column {
                 Text(
                     text = stringResource(R.string.permission_summary_title),
                     style = MaterialTheme.typography.labelMedium,
-                    color = OnboardingTextPrimary,
+                    color = onboardingTextPrimaryColor,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
                     text = stringResource(R.string.permission_summary_format, grantedCount, specialCount),
                     style = MaterialTheme.typography.bodySmall,
-                    color = OnboardingTextSecondary
+                    color = onboardingTextSecondaryColor
                 )
             }
         }
@@ -1351,28 +1384,28 @@ private fun FinalCheckStep(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(OnboardingGradientMid.copy(alpha = 0.1f), RoundedCornerShape(8.dp))
-                        .border(1.dp, OnboardingGradientMid.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                        .background(onboardingAccent.copy(alpha = 0.1f), RoundedCornerShape(8.dp))
+                        .border(1.dp, onboardingAccent.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
                         .padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(18.dp),
                         strokeWidth = 2.dp,
-                        color = OnboardingGradientMid
+                        color = onboardingAccent
                     )
                     Spacer(modifier = Modifier.width(10.dp))
                     Column {
                         Text(
                             text = stringResource(R.string.setup_guide_testing_in_progress),
                             style = MaterialTheme.typography.labelMedium,
-                            color = OnboardingTextPrimary,
+                            color = onboardingTextPrimaryColor,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
                             text = statusText,
                             style = MaterialTheme.typography.bodySmall,
-                            color = OnboardingTextSecondary
+                            color = onboardingTextSecondaryColor
                         )
                     }
                 }
@@ -1409,7 +1442,7 @@ private fun FinalCheckStep(
                 enabled = !isFinishing,
                 modifier = Modifier.fillMaxWidth().height(56.dp),
                 shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = OnboardingGradientMid)
+                colors = ButtonDefaults.buttonColors(containerColor = onboardingAccent)
             ) {
                 if (isFinishing) {
                     CircularProgressIndicator(modifier = Modifier.size(20.dp), color = MaterialTheme.colorScheme.onPrimary, strokeWidth = 2.dp)
@@ -1428,7 +1461,7 @@ private fun FinalCheckStep(
                 enabled = !isTesting,
                 modifier = Modifier.fillMaxWidth().height(56.dp),
                 shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = OnboardingGradientMid)
+                colors = ButtonDefaults.buttonColors(containerColor = onboardingAccent)
             ) {
                 if (isTesting) {
                     CircularProgressIndicator(modifier = Modifier.size(20.dp), color = MaterialTheme.colorScheme.onPrimary, strokeWidth = 2.dp)
@@ -1546,13 +1579,13 @@ private fun HermesFinalStep(onFinish: () -> Unit) {
                 imageVector = Icons.Default.CheckCircle,
                 contentDescription = null,
                 modifier = Modifier.size(72.dp),
-                tint = OnboardingGradientMid
+                tint = onboardingAccent
             )
             Spacer(modifier = Modifier.height(16.dp))
             Text(
                 text = stringResource(R.string.av_setup_done_title),
                 style = MaterialTheme.typography.headlineSmall,
-                color = OnboardingTextPrimary,
+                color = onboardingTextPrimaryColor,
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center
             )
@@ -1560,7 +1593,7 @@ private fun HermesFinalStep(onFinish: () -> Unit) {
             Text(
                 text = stringResource(R.string.setup_guide_final_check_desc),
                 style = MaterialTheme.typography.bodyMedium,
-                color = OnboardingTextSecondary,
+                color = onboardingTextSecondaryColor,
                 textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(16.dp))
@@ -1568,28 +1601,28 @@ private fun HermesFinalStep(onFinish: () -> Unit) {
                 Text(
                     text = stringResource(R.string.setup_guide_no_backends_yet),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = OnboardingTextSecondary,
+                    color = onboardingTextSecondaryColor,
                     textAlign = TextAlign.Center
                 )
             } else {
                 backends.forEach { backend ->
                     Card(
                         modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
-                        colors = CardDefaults.cardColors(containerColor = OnboardingSurface),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, OnboardingBorder)
+                        colors = CardDefaults.cardColors(containerColor = onboardingSurface),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, onboardingBorder)
                     ) {
                         Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
                                     text = backend.displayName,
                                     style = MaterialTheme.typography.titleSmall,
-                                    color = OnboardingTextPrimary,
+                                    color = onboardingTextPrimaryColor,
                                     fontWeight = FontWeight.Medium,
                                     modifier = Modifier.weight(1f)
                                 )
                                 if (backend.isPrimary) {
                                     Surface(
-                                        color = OnboardingGradientMid,
+                                        color = onboardingAccent,
                                         contentColor = Color.White,
                                         shape = RoundedCornerShape(999.dp),
                                     ) {
@@ -1609,7 +1642,7 @@ private fun HermesFinalStep(onFinish: () -> Unit) {
                                     BackendType.OPENCLAW_HTTP -> "OpenClaw API"
                                 },
                                 style = MaterialTheme.typography.labelMedium,
-                                color = OnboardingGradientMid
+                                color = onboardingAccent
                             )
                             val endpoint = backend.baseUrl ?: backend.host?.let { host ->
                                 "${if (backend.useTls) "https" else "http"}://$host:${backend.port ?: 18789}"
@@ -1618,7 +1651,7 @@ private fun HermesFinalStep(onFinish: () -> Unit) {
                                 Text(
                                     text = it,
                                     style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-                                    color = OnboardingTextSecondary
+                                    color = onboardingTextSecondaryColor
                                 )
                             }
                         }
@@ -1633,14 +1666,14 @@ private fun HermesFinalStep(onFinish: () -> Unit) {
                 Spacer(modifier = Modifier.height(16.dp))
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = OnboardingSurface),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, OnboardingBorder),
+                    colors = CardDefaults.cardColors(containerColor = onboardingSurface),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, onboardingBorder),
                 ) {
                     Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(
                             text = stringResource(R.string.setup_guide_e2e_title),
                             style = MaterialTheme.typography.titleSmall,
-                            color = OnboardingTextPrimary,
+                            color = onboardingTextPrimaryColor,
                             fontWeight = FontWeight.Bold,
                         )
                         Text(
@@ -1651,13 +1684,13 @@ private fun HermesFinalStep(onFinish: () -> Unit) {
                             }
                                 ?: stringResource(R.string.setup_guide_no_backends_yet),
                             style = MaterialTheme.typography.bodySmall,
-                            color = OnboardingTextSecondary,
+                            color = onboardingTextSecondaryColor,
                         )
                         if (requiredBackends.any { it.type == BackendType.OPENCLAW_GATEWAY }) {
                             Text(
                                 text = stringResource(R.string.setup_guide_e2e_openclaw_tls_note),
                                 style = MaterialTheme.typography.bodySmall,
-                                color = OnboardingTextSecondary,
+                                color = onboardingTextSecondaryColor,
                             )
                             if (isGatewayConnected) {
                                 Text(
@@ -1669,7 +1702,7 @@ private fun HermesFinalStep(onFinish: () -> Unit) {
                             Text(
                                 text = stringResource(R.string.setup_guide_connection_state, statusText),
                                 style = MaterialTheme.typography.bodySmall,
-                                color = if (gatewayChatReady || isGatewayConnected) MaterialTheme.colorScheme.primary else OnboardingTextSecondary,
+                                color = if (gatewayChatReady || isGatewayConnected) MaterialTheme.colorScheme.primary else onboardingTextSecondaryColor,
                             )
                         }
                         testStatus?.let {
@@ -1681,14 +1714,14 @@ private fun HermesFinalStep(onFinish: () -> Unit) {
                                     CircularProgressIndicator(
                                         modifier = Modifier.size(18.dp),
                                         strokeWidth = 2.dp,
-                                        color = OnboardingGradientMid,
+                                        color = onboardingAccent,
                                     )
                                     Spacer(modifier = Modifier.width(10.dp))
                                 }
                                 Text(
                                     text = it,
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = if (verified) MaterialTheme.colorScheme.primary else OnboardingTextSecondary,
+                                    color = if (verified) MaterialTheme.colorScheme.primary else onboardingTextSecondaryColor,
                                 )
                             }
                         }
@@ -1696,7 +1729,7 @@ private fun HermesFinalStep(onFinish: () -> Unit) {
                             Text(
                                 text = stringResource(R.string.setup_guide_e2e_reply_preview, it),
                                 style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-                                color = OnboardingTextSecondary,
+                                color = onboardingTextSecondaryColor,
                             )
                         }
                     }
@@ -1718,7 +1751,7 @@ private fun HermesFinalStep(onFinish: () -> Unit) {
             enabled = !isTesting && primaryBackend != null,
             modifier = Modifier.fillMaxWidth().height(56.dp),
             shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = OnboardingGradientMid)
+            colors = ButtonDefaults.buttonColors(containerColor = onboardingAccent)
         ) {
             if (isTesting) {
                 CircularProgressIndicator(modifier = Modifier.size(20.dp), color = MaterialTheme.colorScheme.onPrimary, strokeWidth = 2.dp)
@@ -1732,7 +1765,7 @@ private fun HermesFinalStep(onFinish: () -> Unit) {
             enabled = verified,
             modifier = Modifier.fillMaxWidth().height(56.dp),
             shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = OnboardingGradientMid)
+            colors = ButtonDefaults.buttonColors(containerColor = onboardingAccent)
         ) {
             Text(stringResource(R.string.setup_guide_finish), fontSize = 18.sp)
         }

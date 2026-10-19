@@ -55,7 +55,7 @@ class BackendEditorActivity : LocaleAwareActivity() {
         super.onCreate(savedInstanceState)
         val id = intent.getStringExtra(EXTRA_BACKEND_ID)
         setContent {
-            MaterialTheme {
+            com.openclaw.assistant.ui.theme.OpenClawAssistantTheme {
                 BackendEditorScreen(existingId = id, onDone = { finish() })
             }
         }

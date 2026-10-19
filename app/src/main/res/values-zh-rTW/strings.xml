@@ -51,7 +51,7 @@
 <string name="more_options">更多選項</string>
 <string name="no_url">無位址</string>
 <string name="backend_type_hermes_with_url">Hermes Agent - %1$s</string>
-<string name="backend_type_openclaw_with_host">OpenClaw - %1$s:%2$s</string>
+<string name="backend_type_openclaw_with_host">OpenClaw 閘道 - %1$s:%2$s</string>
 <string name="backend_type_openclaw_api_with_url">OpenClaw API - %1$s</string>
 <string name="backend_type">類型</string>
 <string name="backend_display_name">顯示名稱</string>
@@ -147,7 +147,6 @@
 <string name="google_app_setting_desc">開啟 Google 應用程式 → 點擊個人資料 → 設定 → Google Assistant → 常規 → 如果「Google Assistant」仍然有乾擾，請關閉它。</string>
 <string name="refresh_binding_title">刷新綁定</string>
 <string name="refresh_binding_desc">如果狀態為“活動”但仍然無法運作，請嘗試將“數位助理應用程式”變更為“無”，然後返回“WakeHermesClaw”。</string>
-<string name="debug_force_start">調試：強制啟動會話</string>
 <string name="connection">聯繫</string>
 <string name="voice">嗓音</string>
 <string name="wake_word">喚醒詞</string>
@@ -278,7 +277,7 @@
 <string name="select_chat_backend_desc">請選擇此聊天要傳送到哪裡。</string>
 <string name="chat_type_openclaw">OpenClaw</string>
 <string name="chat_type_hermes">Hermes</string>
-<string name="chat_type_gateway">網關聊天</string>
+<string name="chat_type_gateway">OpenClaw 閘道聊天</string>
 <string name="chat_type_http">HTTP 聊天</string>
 <!-- Session List -->
 <string name="chat_sessions_dialog_title">工作階段</string>
@@ -351,7 +350,7 @@
 <string name="capability_location">地點</string>
 <string name="diagnostics_title">診斷</string>
 <string name="setup_required_hint">請在「設定」中配置連接</string>
-<string name="settings_gateway_title">網關連線</string>
+<string name="settings_gateway_title">OpenClaw 閘道連線</string>
 <string name="disconnected">已斷開連接</string>
 <string name="offline">離線</string>
 <string name="gateway_discovery_active">發現活動...</string>
@@ -373,8 +372,8 @@
 <string name="connect">連接</string>
 <string name="gateway_foreground_service">接待櫃檯服務</string>
 <string name="gateway_foreground_desc">繼續在背景運行</string>
-<string name="gateway_use_node_chat">使用網關聊天</string>
-<string name="gateway_use_node_chat_desc">透過網關路由聊天</string>
+<string name="gateway_use_node_chat">使用 OpenClaw 閘道聊天</string>
+<string name="gateway_use_node_chat_desc">透過 OpenClaw 閘道路由聊天</string>
 <string name="settings_legacy_title">HTTP 連線</string>
 <string name="settings_legacy_desc">透過 HTTP 直接連接</string>
 <string name="capability_sms">簡訊</string>
@@ -412,7 +411,7 @@
 <string name="gateway_fingerprint_label">SHA-256 指紋：</string>
 <string name="gateway_not_connected">未連接到網關</string>
 <string name="agents_fetch_failed">已連接，但無法載入代理</string>
-<string name="wake_word_node_title">網關喚醒詞</string>
+<string name="wake_word_node_title">OpenClaw 閘道喚醒詞</string>
 <string name="wake_word_node_desc">偵測您的喚醒詞並向 AI 網關發送請求。</string>
 <string name="wake_word_gateway_desc">本裝置偵聽您的喚醒字詞並向網關傳送指令。輸入您想說的話以啟動助手。</string>
 <string name="wake_word_node_foreground">應用程式打開</string>
@@ -427,7 +426,7 @@
 <string name="state_verify_fingerprint">驗證網關 TLS 指紋...</string>
 <string name="state_failed_fingerprint">失敗：無法讀取 TLS 指紋</string>
 <string name="connection_settings">連接設定</string>
-<string name="tab_gateway">閘道</string>
+<string name="tab_gateway">OpenClaw 閘道</string>
 <string name="tab_http">HTTP協定</string>
 <string name="gateway_configuration">網關設定</string>
 <string name="http_api_configuration">HTTP API 設定</string>
@@ -436,8 +435,8 @@
 <string name="http_ignore_ssl_errors_warning">⚠️ 安全風險：停用 SSL 驗證會使您的連線容易受到中間人 (MITM) 攻擊。同一網路上的攻擊者可能會攔截或篡改您的資料。僅當您完全信任您的網路並且無法安裝正確的憑證時才啟用此功能。</string>
 <string name="wakeword_connection_type">語音會話連接</string>
 <string name="wakeword_connection_type_desc">選擇語音會話（長按 Home）如何傳送訊息給助理。</string>
-<string name="wakeword_use_gateway">閘道</string>
-<string name="wakeword_use_http">HTTP協定</string>
+<string name="wakeword_use_gateway">OpenClaw 閘道</string>
+<string name="wakeword_use_http">Hermes HTTP</string>
 <string name="enter_session_name">輸入會話名稱</string>
 <string name="session_name_optional">會話名稱（可選）</string>
 <string name="running_tools">運行工具</string>
@@ -1013,7 +1012,7 @@
     <string name="asr_section_title">語音辨識</string>
     <string name="asr_engine_hms">華為 HMS（ML Kit）</string>
     <string name="asr_hms_api_key_label">API Key</string>
-    <string name="asr_hint_hms">呼叫裝置上的華為辨識服務，邊說邊出字；需要安裝 HMS Core，並填自己申請的應用 API Key</string>
+    <string name="asr_hint_hms">呼叫裝置上的華為辨識服務，邊說邊出字；需要安裝 HMS Core，並填自己申請的應用 API Key。只支援中文和英文。</string>
     <string name="asr_error_no_key">未填寫金鑰</string>
     <string name="asr_error_hms_unsupported">目前 CPU 架構不支援華為辨識</string>
     <string name="asr_error_hms_auth">（請檢查 API Key、HMS Core 與配額）</string>
@@ -1055,7 +1054,7 @@
     <string name="error_stage_config">設定</string>
     <string name="preflight_voice_not_bound">語音服務卡在系統的舊綁定上：已自動重連、自動重啟一次仍失敗。點「重啟應用程式」再試一次，或重啟手機。</string>
     <string name="tts_provider_hms">華為 HMS（ML Kit）</string>
-    <string name="tts_provider_hms_description">華為 HMS ML Kit 雲端合成。需要連網和 AGC 的 API Key；每月前 100 萬字元免費。</string>
+    <string name="tts_provider_hms_description">華為 HMS ML Kit 雲端合成。需要連網和 AGC 的 API Key；每月前 100 萬字元免費。只支援中文和英文。</string>
     <string name="tts_error_hms_no_key">華為語音合成需要 API Key：請在 設定 → 語音模式 → 語音輸出 裡填寫。</string>
     <string name="tts_hms_api_key_label">API Key</string>
     <string name="tts_hms_api_key_note">用於華為雲端合成（與語音辨識同一個 AGC API Key）。雲端合成每月前 100 萬字元免費。</string>
@@ -1098,4 +1097,30 @@
     <string name="qs_tile_already_added_hint">磁貼已經在快速設定裡了：下拉通知列後向左滑到最後一頁，或點編輯把它拖到前面</string>
     <string name="voice_restarting">語音服務卡住了，正在重啟應用程式恢復…</string>
     <string name="preflight_action_restart">重啟應用程式</string>
+    <string name="preflight_panel_title">語音與聊天前置檢查</string>
+    <string name="preflight_panel_desc">和首頁點「語音對話」「開啟聊天」前是同一套檢查，可提前查看</string>
+    <string name="preflight_all_pass">全部通過，沒有發現問題</string>
+    <string name="preflight_refresh">重新檢查</string>
+    <string name="nova_shortcut_title">最終方案：Nova 手勢 + 捷徑</string>
+    <string name="nova_shortcut_desc">有些 ROM 會把系統手勢和 Nova 的「語音助理」動作都攔走，怎麼設都到不了本應用。這時在 Nova：設定 → 手勢 → 選一個手勢 → 操作 → 捷徑 → 「語音對話」。這條路不經過系統助理，一定能觸發。</string>
+    <string name="terminal_dashboard_off">Hermes dashboard 沒有在執行（%1$s）。請在電腦上執行 `hermes dashboard`（終端頁需要加 --tui），然後再點右上角重新連線。</string>
+    <string name="prompt_settings_title">提示詞</string>
+    <string name="prompt_voice_label">語音對話提示詞</string>
+    <string name="prompt_chat_label">文字聊天提示詞</string>
+    <string name="prompt_hint">每次請求都會作為系統訊息附在前方。可自由修改；點「恢復預設」回到內建內容。</string>
+    <string name="prompt_reset">恢復預設</string>
+    <string name="voice_hermes_gateway_title">語音會送不出去</string>
+    <string name="voice_hermes_gateway_message">主後端是 Hermes，它只支援 HTTP；但「語音會話連線」目前設成OpenClaw 閘道。這樣語音對話會走OpenClaw 閘道，必然失敗。請在 設定 → 喚醒詞 裡把它改成「用 HTTP」。</string>
+    <string name="voice_hermes_gateway_fix">去修改</string>
+    <string name="voice_target_not_configured">所選後端未設定（%1$s）。請先在 設定 → 後端 裡新增。</string>
+    <string name="cron_job_script">腳本（選填）</string>
+    <string name="cron_job_script_hint">填 Hermes 的 scripts/ 目錄下的檔名，例如 daily_report.py</string>
+    <string name="wakeword_use_openclaw_http">OpenClaw HTTP</string>
+    <string name="bridge_http_only_hint">僅用於 HTTP 模式（Hermes / OpenClaw API）。</string>
+    <string name="bridge_gateway_redundant_title">主後端是 OpenClaw 閘道</string>
+    <string name="bridge_gateway_redundant_message">閘道已經是一條入站通道，能直接呼叫手機能力（拍照、讀螢幕、發簡訊等）。再開啟行動橋接等於多開一個監聽埠和一套授權，沒有好處。仍要開啟嗎？</string>
+    <string name="bridge_gateway_redundant_continue">仍然開啟</string>
+    <string name="voice_exit_phrases_title">退出詞</string>
+    <string name="voice_exit_phrases_desc">說到這些詞就直接結束目前語音對話。用逗號或換行分隔；留空則用預設值。</string>
+    <string name="exit_phrases_default">退出,退出對話,結束對話,退出語音</string>
 </resources>

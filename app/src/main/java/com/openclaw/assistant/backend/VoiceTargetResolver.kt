@@ -27,18 +27,21 @@ object VoiceTargetResolver {
             (context.applicationContext as OpenClawApplication).nodeRuntime.chatHealthOk.value
         }.getOrDefault(false)
 
+        val mode = settings.wakewordConnectionType
         val hermesOk = VoiceBackendSelector
-            .selectBackendId(SettingsRepository.VOICE_TARGET_HERMES, backends, gatewayHealthy) != null
+            .selectBackendId(SettingsRepository.VOICE_TARGET_HERMES, backends, gatewayHealthy, mode) != null
         val openClawOk = VoiceBackendSelector
-            .selectBackendId(SettingsRepository.VOICE_TARGET_OPENCLAW, backends, gatewayHealthy) != null
+            .selectBackendId(SettingsRepository.VOICE_TARGET_OPENCLAW, backends, gatewayHealthy, mode) != null
 
         return when {
             hermesOk && !openClawOk -> SettingsRepository.VOICE_TARGET_HERMES
             openClawOk && !hermesOk -> SettingsRepository.VOICE_TARGET_OPENCLAW
-            else -> if (settings.wakewordConnectionType == SettingsRepository.CONNECTION_TYPE_GATEWAY) {
-                SettingsRepository.VOICE_TARGET_OPENCLAW
-            } else {
+            // 两边都可用（或都不可用）：按设置里的连接方式。只有"Hermes HTTP"才走 Hermes，
+            // 网关和 OpenClaw HTTP 都属于 OpenClaw 这个产品。
+            else -> if (mode == SettingsRepository.CONNECTION_TYPE_HTTP) {
                 SettingsRepository.VOICE_TARGET_HERMES
+            } else {
+                SettingsRepository.VOICE_TARGET_OPENCLAW
             }
         }
     }

@@ -15,4 +15,15 @@
                 android:required="true" />
         </intent>
     </capability>
+
+    <!-- 桌面长按图标 / Nova 的手势-快捷方式里会出现这一条 -->
+    <shortcut
+        android:shortcutId="voice_chat"
+        android:enabled="true"
+        android:icon="@drawable/ic_qs_voice"
+        android:shortcutShortLabel="@string/qs_tile_label"
+        android:shortcutLongLabel="@string/qs_tile_subtitle_ready">
+        <intent
+            android:action="com.openclaw.assistant.action.VOICE_CHAT" />
+    </shortcut>
 </shortcuts>
