@@ -253,6 +253,11 @@ class OpenClawSession(
         Log.e(TAG, "Session onCreateContentView")
         val composeView = ComposeView(context).apply {
             Log.e(TAG, "Initializing ComposeView with owners")
+            // 窗口是 wrap_content：这个 View 也必须 wrap，否则子 View 撑满屏幕、窗口又变回全屏
+            layoutParams = android.view.ViewGroup.LayoutParams(
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+            )
             // Set ViewTree owners using extensions
             try {
                 setViewTreeLifecycleOwner(this@OpenClawSession)
@@ -313,6 +318,11 @@ class OpenClawSession(
         SessionForegroundService.start(context)
 
         Log.d(TAG, "Session shown with flags: $showFlags")
+
+        // 面板原本是全屏窗口（TYPE_VOICE_INTERACTION），连状态栏一起盖住，
+        // 结果通知栏拉不下来、批准类通知点不到。这里把窗口改成"底部卡片"：
+        // 高度 = 屏幕 - 状态栏 - 一点余量，状态栏那一条留给系统，下拉通知栏照常可用。
+        applyBottomCardWindowLayout()
 
         // PAUSE Hotword Service to prevent microphone conflict
         sendPauseBroadcast()
@@ -386,6 +396,32 @@ class OpenClawSession(
         startListening()
     }
     
+    /**
+     * 把会话窗口收成底部卡片，给状态栏留出可点的区域。
+     *
+     * 为什么需要：VoiceInteractionSession 的窗口默认铺满整屏，Compose 根布局又是一层
+     * 70% 黑底，于是状态栏也被盖在下面 —— 通知栏拉不下来，审批通知点不到。
+     * 窗口高度减掉状态栏（再加一点余量）后，顶部那一条仍归 SystemUI，下拉手势正常。
+     */
+    private fun applyBottomCardWindowLayout() {
+        runCatching {
+            // VoiceInteractionSession.window 是 Dialog，真正的窗口在 dialog.window 上
+            val win = window?.window ?: return@runCatching
+            val lp = win.attributes
+            lp.gravity = android.view.Gravity.BOTTOM
+            // 高度跟着内容走：面板多高窗口就多高，不留一大片空背景
+            lp.height = android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+            lp.width = android.view.ViewGroup.LayoutParams.MATCH_PARENT
+            // 不加背景遮罩，只让卡片浮在应用上方
+            lp.dimAmount = 0f
+            lp.flags = lp.flags and android.view.WindowManager.LayoutParams.FLAG_DIM_BEHIND.inv()
+            win.setAttributes(lp)
+            Log.d(TAG, "Session window adjusted: wrap_content at bottom")
+        }.onFailure {
+            Log.w(TAG, "Session window adjust failed", it)
+        }
+    }
+
     override fun onHide() {
         super.onHide()
 
@@ -1257,10 +1293,11 @@ fun AssistantUI(
     /** 正在听的时候点它 = 停止说话并发送（对讲模式收尾用；面板盖住了主页按钮，只能在面板里给） */
     onStopListening: () -> Unit = {}
 ) {
+    // 窗口本身就是"底部卡片"（高度 wrap_content、贴底），这里不再铺满整屏、
+    // 也不画那层 70% 黑底 —— 否则上半屏会留一块空荡荡的深色区域。
     Box(
         modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.7f))
+            .fillMaxWidth()
             .padding(16.dp),
         contentAlignment = Alignment.BottomCenter
     ) {
