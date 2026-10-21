@@ -268,7 +268,7 @@
 <string name="agent_default">डिफ़ॉल्ट</string>
 <string name="notification_session_channel_name">आवाज सत्र</string>
 <string name="notification_session_title">बातचीत चल रही है</string>
-<string name="notification_session_content">ध्वनि सत्र सक्रिय है</string>
+<string name="notification_session_content">बातचीत पर लौटने के लिए टैप करें</string>
 <string name="conversations_title">बात चिट</string>
 <string name="new_chat">नई चैट</string>
 <string name="delete">मिटाना</string>
@@ -1126,4 +1126,9 @@
     <string name="diag_tts_switch_google">अभी %1$s का उपयोग हो रहा है। बेहतर सहायता के लिए Google पर स्विच करें।</string>
     <string name="diag_action_select_google">Google चुनें</string>
     <string name="diag_engine_default">सिस्टम डिफ़ॉल्ट</string>
+    <string name="bridge_notification_title">WakeHermesClaw ब्रिज</string>
+    <string name="bridge_notification_text">लोकल ब्रिज पोर्ट %1$d पर चल रहा है</string>
+    <string name="bridge_notification_channel">मोबाइल ब्रिज</string>
+    <string name="bridge_notification_channel_desc">WakeHermesClaw मोबाइल ब्रिज डिवाइस की सुविधाएँ उपलब्ध करा रहा है</string>
+    <string name="notification_session_content_active">बातचीत जारी है</string>
 </resources>

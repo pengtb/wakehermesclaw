@@ -268,7 +268,7 @@
 <string name="agent_default">По умолчанию</string>
 <string name="notification_session_channel_name">Голосовая сессия</string>
 <string name="notification_session_title">Разговор продолжается</string>
-<string name="notification_session_content">Голосовая сессия активна</string>
+<string name="notification_session_content">Нажмите, чтобы вернуться к разговору</string>
 <string name="conversations_title">Беседы</string>
 <string name="new_chat">Новый чат</string>
 <string name="delete">Удалить</string>
@@ -1126,4 +1126,9 @@
     <string name="diag_tts_switch_google">Сейчас используется %1$s. Переключитесь на Google для лучшей поддержки.</string>
     <string name="diag_action_select_google">Выбрать Google</string>
     <string name="diag_engine_default">Системный по умолчанию</string>
+    <string name="bridge_notification_title">Мост WakeHermesClaw</string>
+    <string name="bridge_notification_text">Локальный мост работает на порту %1$d</string>
+    <string name="bridge_notification_channel">Мобильный мост</string>
+    <string name="bridge_notification_channel_desc">Мобильный мост WakeHermesClaw предоставляет функции устройства</string>
+    <string name="notification_session_content_active">Разговор идёт</string>
 </resources>

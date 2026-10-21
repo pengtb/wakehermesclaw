@@ -298,7 +298,7 @@
 <string name="agent_default">デフォルト</string>
 <string name="notification_session_channel_name">音声セッション</string>
 <string name="notification_session_title">会話中</string>
-<string name="notification_session_content">音声セッションがアクティブです</string>
+<string name="notification_session_content">タップして会話に戻る</string>
 <string name="conversations_title">会話</string>
 <string name="new_chat">新規チャット</string>
 <string name="delete">削除</string>
@@ -1129,4 +1129,9 @@
     <string name="diag_tts_switch_google">現在 %1$s を使用しています。Google に切り替えるとより確実です。</string>
     <string name="diag_action_select_google">Google を選択</string>
     <string name="diag_engine_default">システム標準</string>
+    <string name="bridge_notification_title">WakeHermesClaw ブリッジ</string>
+    <string name="bridge_notification_text">ローカルブリッジがポート %1$d で動作中</string>
+    <string name="bridge_notification_channel">モバイルブリッジ</string>
+    <string name="bridge_notification_channel_desc">WakeHermesClaw のモバイルブリッジが端末の機能を公開しています</string>
+    <string name="notification_session_content_active">音声会話を実行中</string>
 </resources>

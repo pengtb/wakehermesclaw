@@ -526,7 +526,7 @@
     <!-- Session Foreground Service -->
     <string name="notification_session_channel_name">Voice Session</string>
     <string name="notification_session_title">Conversation in progress</string>
-    <string name="notification_session_content">Voice session is active</string>
+    <string name="notification_session_content">Tap to return to the conversation</string>
 
     <!-- Chat UI -->
     <string name="conversations_title">Conversations</string>
@@ -1215,4 +1215,9 @@
     <string name="voice_exit_phrases_title">Exit phrases</string>
     <string name="voice_exit_phrases_desc">Saying any of these ends the voice conversation right away. Separate with commas or new lines; leave empty to use the defaults.</string>
     <string name="exit_phrases_default">exit,quit,goodbye,stop,close</string>
+    <string name="bridge_notification_title">WakeHermesClaw Bridge</string>
+    <string name="bridge_notification_text">Local bridge is running on port %1$d</string>
+    <string name="bridge_notification_channel">Mobile Bridge</string>
+    <string name="bridge_notification_channel_desc">The WakeHermesClaw mobile bridge is exposing local capabilities</string>
+    <string name="notification_session_content_active">Conversation in progress</string>
 </resources>

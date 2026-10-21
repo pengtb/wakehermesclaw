@@ -268,7 +268,7 @@ Pour plus de détails, consultez le site officiel de VOICEVOX.</string>
 <string name="agent_default">Par défaut</string>
 <string name="notification_session_channel_name">Session vocale</string>
 <string name="notification_session_title">Conversation en cours</string>
-<string name="notification_session_content">La session vocale est active</string>
+<string name="notification_session_content">Touchez pour revenir à la conversation</string>
 <string name="conversations_title">Conversations</string>
 <string name="new_chat">Nouvelle discussion</string>
 <string name="delete">Supprimer</string>
@@ -1126,4 +1126,9 @@ Pour plus de détails, consultez le site officiel de VOICEVOX.</string>
     <string name="diag_tts_switch_google">Vous utilisez actuellement %1$s. Passez à Google pour un meilleur support.</string>
     <string name="diag_action_select_google">Choisir Google</string>
     <string name="diag_engine_default">Par défaut du système</string>
+    <string name="bridge_notification_title">Pont WakeHermesClaw</string>
+    <string name="bridge_notification_text">Le pont local fonctionne sur le port %1$d</string>
+    <string name="bridge_notification_channel">Pont mobile</string>
+    <string name="bridge_notification_channel_desc">Le pont mobile WakeHermesClaw expose les fonctions de l\'appareil</string>
+    <string name="notification_session_content_active">Conversation en cours</string>
 </resources>

@@ -509,7 +509,7 @@
     <!-- Session Foreground Service -->
     <string name="notification_session_channel_name">음성 세션</string>
     <string name="notification_session_title">대화 진행 중</string>
-    <string name="notification_session_content">음성 세션이 활성화되어 있습니다</string>
+    <string name="notification_session_content">탭하여 대화로 돌아가기</string>
 
     <!-- Chat UI -->
     <string name="conversations_title">대화</string>
@@ -1218,4 +1218,9 @@
     <string name="diag_tts_switch_google">현재 %1$s을(를) 사용 중입니다. 더 나은 지원을 위해 Google로 전환하세요.</string>
     <string name="diag_action_select_google">Google 선택</string>
     <string name="diag_engine_default">시스템 기본값</string>
+    <string name="bridge_notification_title">WakeHermesClaw 브리지</string>
+    <string name="bridge_notification_text">로컬 브리지가 포트 %1$d에서 실행 중</string>
+    <string name="bridge_notification_channel">모바일 브리지</string>
+    <string name="bridge_notification_channel_desc">WakeHermesClaw 모바일 브리지가 기기 기능을 노출하고 있습니다</string>
+    <string name="notification_session_content_active">음성 대화 진행 중</string>
 </resources>

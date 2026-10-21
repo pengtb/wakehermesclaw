@@ -316,6 +316,7 @@ class OpenClawSession(
 
         // Start foreground service to keep process alive during conversation (screen off)
         SessionForegroundService.start(context)
+        SessionForegroundService.updatePanelVisible(context, true)
 
         Log.d(TAG, "Session shown with flags: $showFlags")
 
@@ -424,6 +425,8 @@ class OpenClawSession(
 
     override fun onHide() {
         super.onHide()
+        // 面板被收起（切后台 / 返回）：通知正文换成"点按回到对话"
+        SessionForegroundService.updatePanelVisible(context, false)
 
         // ユーザーが明示的に Close ボタンを押した場合は、音声状態に関わらず必ずクリーンアップ
         if (isUserDismissed) {

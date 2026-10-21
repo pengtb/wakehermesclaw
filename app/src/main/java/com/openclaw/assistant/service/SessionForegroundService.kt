@@ -15,7 +15,6 @@ import android.os.PowerManager
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
-import com.openclaw.assistant.MainActivity
 import com.openclaw.assistant.R
 
 /**
@@ -29,6 +28,8 @@ class SessionForegroundService : Service() {
         private const val TAG = "SessionFgService"
         private const val NOTIFICATION_ID = 1002
         private const val CHANNEL_ID = "session_channel"
+        private const val ACTION_UPDATE_VISIBILITY = "com.openclaw.assistant.session.UPDATE_VISIBILITY"
+        private const val EXTRA_PANEL_VISIBLE = "panel_visible"
 
         fun start(context: Context) {
             val intent = Intent(context, SessionForegroundService::class.java)
@@ -52,9 +53,29 @@ class SessionForegroundService : Service() {
         fun stop(context: Context) {
             context.stopService(Intent(context, SessionForegroundService::class.java))
         }
+
+        /** 服务是否已经 startForeground 过；没在跑时不能再 notify，否则会留下一条没人管的通知 */
+        @Volatile
+        private var foregroundStarted = false
+
+        /**
+         * 面板在前台还是被切到后台：决定通知正文写"进行中"还是"点按回到对话"。
+         * 前台服务本身不能只在后台才挂通知，所以只能改文案。
+         */
+        fun updatePanelVisible(context: Context, visible: Boolean) {
+            // 服务已经停了（对话结束）就别再 startService —— 那样会拉起一个只 notify 不留手的实例，
+            // 通知就永远挂在状态栏上
+            if (!foregroundStarted) return
+            val intent = Intent(context, SessionForegroundService::class.java).apply {
+                action = ACTION_UPDATE_VISIBILITY
+                putExtra(EXTRA_PANEL_VISIBLE, visible)
+            }
+            runCatching { context.startService(intent) }
+        }
     }
 
     private var wakeLock: PowerManager.WakeLock? = null
+    private var panelVisible = true
 
     override fun onCreate() {
         super.onCreate()
@@ -62,6 +83,19 @@ class SessionForegroundService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (intent?.action == ACTION_UPDATE_VISIBILITY) {
+            if (!foregroundStarted) {
+                stopSelf()
+                return START_NOT_STICKY
+            }
+            panelVisible = intent.getBooleanExtra(EXTRA_PANEL_VISIBLE, panelVisible)
+            runCatching {
+                androidx.core.app.NotificationManagerCompat.from(this)
+                    .notify(NOTIFICATION_ID, createNotification())
+            }
+            return START_NOT_STICKY
+        }
+
         val hasMicPermission = ContextCompat.checkSelfPermission(
             this, Manifest.permission.RECORD_AUDIO
         ) == PackageManager.PERMISSION_GRANTED
@@ -85,12 +119,18 @@ class SessionForegroundService : Service() {
             stopSelf()
             return START_NOT_STICKY
         }
+        foregroundStarted = true
         acquireWakeLock()
         Log.d(TAG, "Session foreground service started")
         return START_NOT_STICKY
     }
 
     override fun onDestroy() {
+        foregroundStarted = false
+        // stopService 不一定会把 notify() 更新过的那条一起收走，这里显式撤一次
+        runCatching {
+            androidx.core.app.NotificationManagerCompat.from(this).cancel(NOTIFICATION_ID)
+        }
         releaseWakeLock()
         Log.d(TAG, "Session foreground service stopped")
         super.onDestroy()
@@ -113,14 +153,22 @@ class SessionForegroundService : Service() {
     }
 
     private fun createNotification(): Notification {
-        val pendingIntent = PendingIntent.getActivity(
-            this, 0,
-            Intent(this, MainActivity::class.java),
-            PendingIntent.FLAG_IMMUTABLE
+        // 点通知要回到"语音对话"本身，不是回主页：发一条 app 内广播，
+        // 由 OpenClawAssistantService 的接收器调 showSession()（会话已存在时就是重新显示面板）。
+        val pendingIntent = PendingIntent.getBroadcast(
+            this,
+            0,
+            Intent(OpenClawAssistantService.ACTION_SHOW_ASSISTANT).setPackage(packageName),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(getString(R.string.notification_session_title))
-            .setContentText(getString(R.string.notification_session_content))
+            .setContentText(
+                getString(
+                    if (panelVisible) R.string.notification_session_content_active
+                    else R.string.notification_session_content
+                )
+            )
             .setSmallIcon(R.drawable.ic_mic)
             .setContentIntent(pendingIntent)
             .setOngoing(true)

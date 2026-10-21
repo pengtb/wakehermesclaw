@@ -267,7 +267,7 @@ Weitere Informationen finden Sie auf der offiziellen Website von VOICEVOX.</stri
 <string name="agent_default">Standard</string>
 <string name="notification_session_channel_name">Sprachsitzung</string>
 <string name="notification_session_title">Gespräch läuft</string>
-<string name="notification_session_content">Die Sprachsitzung ist aktiv</string>
+<string name="notification_session_content">Tippen, um zum Gespräch zurückzukehren</string>
 <string name="conversations_title">Gespräche</string>
 <string name="new_chat">Neuer Chat</string>
 <string name="delete">Löschen</string>
@@ -1125,4 +1125,9 @@ Weitere Informationen finden Sie auf der offiziellen Website von VOICEVOX.</stri
     <string name="diag_tts_switch_google">Derzeit wird %1$s verwendet. Der Wechsel zu Google bietet bessere Unterstützung.</string>
     <string name="diag_action_select_google">Google auswählen</string>
     <string name="diag_engine_default">Systemstandard</string>
+    <string name="bridge_notification_title">WakeHermesClaw Bridge</string>
+    <string name="bridge_notification_text">Lokale Bridge läuft auf Port %1$d</string>
+    <string name="bridge_notification_channel">Mobile Bridge</string>
+    <string name="bridge_notification_channel_desc">Die WakeHermesClaw Mobile Bridge stellt Gerätefunktionen bereit</string>
+    <string name="notification_session_content_active">Gespräch läuft</string>
 </resources>

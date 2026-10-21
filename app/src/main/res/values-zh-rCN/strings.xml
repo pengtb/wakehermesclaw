@@ -268,7 +268,7 @@
 <string name="agent_default">默认</string>
 <string name="notification_session_channel_name">语音会话</string>
 <string name="notification_session_title">对话正在进行</string>
-<string name="notification_session_content">语音会话处于活动状态</string>
+<string name="notification_session_content">点按回到语音对话</string>
 <string name="conversations_title">对话</string>
 <string name="new_chat">新聊天</string>
 <string name="delete">删除</string>
@@ -1124,4 +1124,9 @@
     <string name="voice_exit_phrases_title">退出词</string>
     <string name="voice_exit_phrases_desc">说到这些词就直接结束当前语音对话。用逗号或换行分隔；留空则用默认值。</string>
     <string name="exit_phrases_default">退出,退出对话,结束对话,退出语音</string>
+    <string name="bridge_notification_title">WakeHermesClaw 桥接</string>
+    <string name="bridge_notification_text">本地桥接正在端口 %1$d 运行</string>
+    <string name="bridge_notification_channel">移动桥接</string>
+    <string name="bridge_notification_channel_desc">WakeHermesClaw 的移动桥接正在对外暴露本机能力</string>
+    <string name="notification_session_content_active">语音对话进行中</string>
 </resources>
