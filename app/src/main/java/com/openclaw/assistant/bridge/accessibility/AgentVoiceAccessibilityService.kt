@@ -58,24 +58,54 @@ class AgentVoiceAccessibilityService : AccessibilityService() {
         return WakeLockManager.withWakeLock {
             val path = Path().apply { moveTo(x, y); lineTo(x + 1f, y + 1f) }
             val stroke = GestureDescription.StrokeDescription(path, 0L, 50L)
-            dispatchGesture(GestureDescription.Builder().addStroke(stroke).build(), null, null)
+            dispatchAndWait(GestureDescription.Builder().addStroke(stroke).build(), 1500L)
         }
     }
 
     fun performSwipe(x1: Float, y1: Float, x2: Float, y2: Float, durationMs: Long): Boolean {
         return WakeLockManager.withWakeLock {
             val path = Path().apply { moveTo(x1, y1); lineTo(x2, y2) }
-            val stroke = GestureDescription.StrokeDescription(path, 0L, durationMs.coerceAtLeast(50L))
-            dispatchGesture(GestureDescription.Builder().addStroke(stroke).build(), null, null)
+            val duration = durationMs.coerceAtLeast(50L)
+            val stroke = GestureDescription.StrokeDescription(path, 0L, duration)
+            dispatchAndWait(GestureDescription.Builder().addStroke(stroke).build(), duration + 1500L)
         }
     }
 
     fun performLongPress(x: Float, y: Float, durationMs: Long): Boolean {
         return WakeLockManager.withWakeLock {
             val path = Path().apply { moveTo(x, y); lineTo(x + 1f, y + 1f) }
-            val stroke = GestureDescription.StrokeDescription(path, 0L, durationMs.coerceAtLeast(350L))
-            dispatchGesture(GestureDescription.Builder().addStroke(stroke).build(), null, null)
+            val duration = durationMs.coerceAtLeast(350L)
+            val stroke = GestureDescription.StrokeDescription(path, 0L, duration)
+            dispatchAndWait(GestureDescription.Builder().addStroke(stroke).build(), duration + 1500L)
         }
+    }
+
+    /**
+     * dispatchGesture 必须从主线程发起，而且它的返回值只代表"请求被接受"，手势真正执行完是回调里才通知的。
+     * 之前这两点都没处理：桥的 execute() 跑在 IO 线程上，于是手势在真机上静默失效（返回 ok、界面没反应）。
+     * 这里 post 到主线程、等 onCompleted/onCancelled，超时按失败处理。
+     */
+    private fun dispatchAndWait(gesture: GestureDescription, timeoutMs: Long): Boolean {
+        val latch = java.util.concurrent.CountDownLatch(1)
+        val completed = java.util.concurrent.atomic.AtomicBoolean(false)
+        android.os.Handler(android.os.Looper.getMainLooper()).post {
+            val accepted = runCatching {
+                dispatchGesture(gesture, object : GestureResultCallback() {
+                    override fun onCompleted(g: GestureDescription?) {
+                        completed.set(true)
+                        latch.countDown()
+                    }
+
+                    override fun onCancelled(g: GestureDescription?) {
+                        completed.set(false)
+                        latch.countDown()
+                    }
+                }, null)
+            }.getOrDefault(false)
+            if (!accepted) latch.countDown()
+        }
+        latch.await(timeoutMs, java.util.concurrent.TimeUnit.MILLISECONDS)
+        return completed.get()
     }
 
     /** Outcome of a screen grab: a bitmap on success, else the platform error code (-1 = call threw). */
@@ -147,8 +177,17 @@ class AgentVoiceAccessibilityService : AccessibilityService() {
         )
     }
 
+    /**
+     * 窗口顺序决定了 packageName 取谁、节点先遍历谁。`windows` 的顺序不保证把前台窗口放前面
+     * —— 实测在这台 ROM 上第一条是状态栏窗口，于是 screen.window.describe 会把
+     * packageName 报成 com.android.systemui / "主屏幕"，哪怕用户正在别的应用里。
+     * 这里按 isActive 优先重排，再退回 windowId 顺序。
+     */
     private fun snapshotRoots(): List<AccessibilityNodeInfo> {
-        val multi = runCatching { windows.mapNotNull { it.root } }.getOrDefault(emptyList())
+        val ordered = runCatching {
+            windows.sortedByDescending { runCatching { it.isActive }.getOrDefault(false) }
+        }.getOrDefault(emptyList())
+        val multi = ordered.mapNotNull { runCatching { it.root }.getOrNull() }
         return if (multi.isNotEmpty()) multi else listOfNotNull(rootInActiveWindow)
     }
 

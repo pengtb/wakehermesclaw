@@ -49,14 +49,12 @@ object SmsSendCapability : BridgeCapability {
         val body = arguments["text"]?.jsonPrimitive?.content
         if (number.isNullOrBlank() || body.isNullOrBlank())
             return buildJsonObject { put("sent", false); put("reason", "number and text are required") }
-        return try {
-            val sm = context.getSystemService(Context.TELEPHONY_SERVICE) // ensure service is up
-            android.telephony.SmsManager.getDefault().sendTextMessage(number, null, body, null, null)
-            buildJsonObject { put("sent", true) }
-        } catch (e: SecurityException) {
-            buildJsonObject { put("sent", false); put("reason", "permission denied") }
-        } catch (e: Exception) {
-            buildJsonObject { put("sent", false); put("reason", e.message ?: "send failed") }
+        // 等发送结果再回话：原来只回"调用没抛异常"，短信实际没发出去也报 sent:true
+        val outcome = SmsSender.send(context, number.trim(), body)
+        return buildJsonObject {
+            put("sent", outcome.sent)
+            outcome.resultCode?.let { put("resultCode", it) }
+            outcome.reason?.let { put("reason", it) }
         }
     }
 }

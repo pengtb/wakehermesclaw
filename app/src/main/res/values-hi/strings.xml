@@ -1131,4 +1131,9 @@
     <string name="bridge_notification_channel">मोबाइल ब्रिज</string>
     <string name="bridge_notification_channel_desc">WakeHermesClaw मोबाइल ब्रिज डिवाइस की सुविधाएँ उपलब्ध करा रहा है</string>
     <string name="notification_session_content_active">बातचीत जारी है</string>
+    <string name="permission_accessibility_service">एक्सेसिबिलिटी सेवा (फ़ोन नियंत्रण)</string>
+    <string name="permission_accessibility_service_desc">स्क्रीन पढ़ने, टैप और स्वाइप के लिए ज़रूरी। वॉइस बातचीत इसके बिना भी चलती है।</string>
+    <string name="permission_status_on">चालू</string>
+    <string name="permission_status_off">बंद</string>
+    <string name="preflight_accessibility_optional">एक्सेसिबिलिटी सेवा बंद है: स्क्रीन पढ़ना, टैप और स्वाइप उपलब्ध नहीं (वॉइस बातचीत पर असर नहीं)।</string>
 </resources>

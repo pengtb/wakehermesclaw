@@ -1131,4 +1131,9 @@ Pour plus de détails, consultez le site officiel de VOICEVOX.</string>
     <string name="bridge_notification_channel">Pont mobile</string>
     <string name="bridge_notification_channel_desc">Le pont mobile WakeHermesClaw expose les fonctions de l\'appareil</string>
     <string name="notification_session_content_active">Conversation en cours</string>
+    <string name="permission_accessibility_service">Service d\'accessibilité (contrôle du téléphone)</string>
+    <string name="permission_accessibility_service_desc">Nécessaire pour lire l\'écran, toucher et balayer. Les conversations vocales fonctionnent sans.</string>
+    <string name="permission_status_on">Activé</string>
+    <string name="permission_status_off">Désactivé</string>
+    <string name="preflight_accessibility_optional">Le service d\'accessibilité est désactivé : lecture d\'écran, appuis et balayages indisponibles (les conversations vocales ne sont pas concernées).</string>
 </resources>

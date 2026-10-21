@@ -1128,4 +1128,9 @@
     <string name="bridge_notification_channel">行動橋接</string>
     <string name="bridge_notification_channel_desc">WakeHermesClaw 的行動橋接正在對外開放本機能力</string>
     <string name="notification_session_content_active">語音對話進行中</string>
+    <string name="permission_accessibility_service">無障礙服務（手機控制）</string>
+    <string name="permission_accessibility_service_desc">讀螢幕、點按、滑動這些手機控制能力需要它；語音對話不開也能用。</string>
+    <string name="permission_status_on">已開啟</string>
+    <string name="permission_status_off">未開啟</string>
+    <string name="preflight_accessibility_optional">無障礙服務沒開：讀螢幕、點按、滑動這些手機控制能力不能用（不影響語音對話）。</string>
 </resources>

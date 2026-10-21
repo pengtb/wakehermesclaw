@@ -1131,4 +1131,9 @@
     <string name="bridge_notification_channel">Мобильный мост</string>
     <string name="bridge_notification_channel_desc">Мобильный мост WakeHermesClaw предоставляет функции устройства</string>
     <string name="notification_session_content_active">Разговор идёт</string>
+    <string name="permission_accessibility_service">Служба доступности (управление телефоном)</string>
+    <string name="permission_accessibility_service_desc">Нужна для чтения экрана, нажатий и свайпов. Голосовые разговоры работают и без неё.</string>
+    <string name="permission_status_on">Вкл.</string>
+    <string name="permission_status_off">Выкл.</string>
+    <string name="preflight_accessibility_optional">Служба доступности выключена: чтение экрана, нажатия и свайпы недоступны (на голосовые разговоры не влияет).</string>
 </resources>

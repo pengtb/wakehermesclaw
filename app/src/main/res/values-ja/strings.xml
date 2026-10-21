@@ -1134,4 +1134,9 @@
     <string name="bridge_notification_channel">モバイルブリッジ</string>
     <string name="bridge_notification_channel_desc">WakeHermesClaw のモバイルブリッジが端末の機能を公開しています</string>
     <string name="notification_session_content_active">音声会話を実行中</string>
+    <string name="permission_accessibility_service">アクセシビリティサービス（端末操作）</string>
+    <string name="permission_accessibility_service_desc">画面読み上げ・タップ・スワイプなど端末操作に必要です。音声会話はなくても使えます。</string>
+    <string name="permission_status_on">オン</string>
+    <string name="permission_status_off">オフ</string>
+    <string name="preflight_accessibility_optional">アクセシビリティサービスがオフです。画面読み上げ・タップ・スワイプが使えません（音声会話には影響しません）。</string>
 </resources>

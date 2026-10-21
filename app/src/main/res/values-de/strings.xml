@@ -1130,4 +1130,9 @@ Weitere Informationen finden Sie auf der offiziellen Website von VOICEVOX.</stri
     <string name="bridge_notification_channel">Mobile Bridge</string>
     <string name="bridge_notification_channel_desc">Die WakeHermesClaw Mobile Bridge stellt Gerätefunktionen bereit</string>
     <string name="notification_session_content_active">Gespräch läuft</string>
+    <string name="permission_accessibility_service">Bedienungshilfen-Dienst (Gerätesteuerung)</string>
+    <string name="permission_accessibility_service_desc">Wird für Bildschirmlesen, Tippen und Wischen benötigt. Sprachgespräche funktionieren auch ohne.</string>
+    <string name="permission_status_on">Ein</string>
+    <string name="permission_status_off">Aus</string>
+    <string name="preflight_accessibility_optional">Bedienungshilfen-Dienst ist aus: Bildschirmlesen, Tippen und Wischen sind nicht verfügbar (Sprachgespräche sind nicht betroffen).</string>
 </resources>

@@ -205,6 +205,13 @@ private enum class SpecialAccessToggle(
         R.string.permission_default_assistant,
         R.string.permission_default_assistant_desc,
         Icons.Default.Mic
+    ),
+
+    /** 无障碍服务：手机控制（读屏/点按/滑动）靠它；不开也不影响语音对话 */
+    AccessibilityService(
+        R.string.permission_accessibility_service,
+        R.string.permission_accessibility_service_desc,
+        Icons.Default.TouchApp
     )
 }
 
@@ -989,6 +996,8 @@ private fun PermissionsStep(onNext: () -> Unit) {
                 SpecialAccessToggle.AppUpdates -> canInstallUnknownApps(context)
                 SpecialAccessToggle.AssistantRole ->
                     com.openclaw.assistant.speech.AssistantRoleStatus.isDefaultAssistant(context)
+                SpecialAccessToggle.AccessibilityService ->
+                    com.openclaw.assistant.bridge.accessibility.AgentVoiceAccessibilityService.isRunning()
             }
         })
     }
@@ -1018,6 +1027,8 @@ private fun PermissionsStep(onNext: () -> Unit) {
                         SpecialAccessToggle.AppUpdates -> canInstallUnknownApps(context)
                         SpecialAccessToggle.AssistantRole ->
                             com.openclaw.assistant.speech.AssistantRoleStatus.isDefaultAssistant(context)
+                        SpecialAccessToggle.AccessibilityService ->
+                            com.openclaw.assistant.bridge.accessibility.AgentVoiceAccessibilityService.isRunning()
                     }
                 }
                 // Also refresh normal permissions in case they were changed in settings
@@ -1100,6 +1111,10 @@ private fun PermissionsStep(onNext: () -> Unit) {
                         // 数字助理：没设就弹系统的角色请求框，设过了就去助理设置页
                         SpecialAccessToggle.AssistantRole ->
                             com.openclaw.assistant.speech.AssistantRoleStatus.openAssistantSettings(context)
+                        SpecialAccessToggle.AccessibilityService ->
+                            runCatching {
+                                context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                            }
                     }
                 }
             )
@@ -1267,6 +1282,8 @@ private fun FinalCheckStep(
                 SpecialAccessToggle.AppUpdates -> canInstallUnknownApps(context)
                 SpecialAccessToggle.AssistantRole ->
                     com.openclaw.assistant.speech.AssistantRoleStatus.isDefaultAssistant(context)
+                SpecialAccessToggle.AccessibilityService ->
+                    com.openclaw.assistant.bridge.accessibility.AgentVoiceAccessibilityService.isRunning()
             }
         }
     }

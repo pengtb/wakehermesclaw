@@ -1129,4 +1129,9 @@
     <string name="bridge_notification_channel">移动桥接</string>
     <string name="bridge_notification_channel_desc">WakeHermesClaw 的移动桥接正在对外暴露本机能力</string>
     <string name="notification_session_content_active">语音对话进行中</string>
+    <string name="permission_accessibility_service">无障碍服务（手机控制）</string>
+    <string name="permission_accessibility_service_desc">读屏、点按、滑动这些手机控制能力需要它；语音对话不开也能用。</string>
+    <string name="permission_status_on">已开启</string>
+    <string name="permission_status_off">未开启</string>
+    <string name="preflight_accessibility_optional">无障碍服务没开：读屏、点按、滑动这些手机控制能力用不了（不影响语音对话）。</string>
 </resources>

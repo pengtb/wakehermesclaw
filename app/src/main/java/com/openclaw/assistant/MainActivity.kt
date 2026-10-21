@@ -328,6 +328,15 @@ class MainActivity : LocaleAwareActivity(), TextToSpeech.OnInitListener {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             list.add(PermissionStatusInfo(getString(R.string.permission_notifications), ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED))
         }
+        // 无障碍服务：不是运行时权限，但手机控制（读屏/点按/滑动）全靠它
+        list.add(
+            PermissionStatusInfo(
+                permissionName = getString(R.string.permission_accessibility_service),
+                isGranted = com.openclaw.assistant.bridge.accessibility.AgentVoiceAccessibilityService.isRunning(),
+                grantedText = getString(R.string.permission_status_on),
+                deniedText = getString(R.string.permission_status_off)
+            )
+        )
         // 数字助理：不是权限，但没设的话唤醒词响一声就没了，所以和权限一起列出来
         list.add(
             PermissionStatusInfo(
@@ -1283,6 +1292,13 @@ fun MainScreen(
                         com.openclaw.assistant.backend.VoiceTargetResolver
                             .defaultTarget(preflightContext)
                     )
+                com.openclaw.assistant.ui.PreflightFix.ACCESSIBILITY_SETTINGS -> {
+                    runCatching {
+                        preflightContext.startActivity(
+                            Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS)
+                        )
+                    }
+                }
                 com.openclaw.assistant.ui.PreflightFix.BATTERY_OPTIMIZATION ->
                     com.openclaw.assistant.ui.BatteryOptimization.requestWhitelist(preflightContext)
             }

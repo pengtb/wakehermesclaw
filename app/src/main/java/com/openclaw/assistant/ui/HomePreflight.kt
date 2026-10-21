@@ -29,7 +29,10 @@ enum class PreflightFix {
     RESTART_APP,
 
     /** 电池优化白名单：只作为"（可选）"建议，不拦操作 */
-    BATTERY_OPTIMIZATION
+    BATTERY_OPTIMIZATION,
+
+    /** 无障碍服务：手机控制（读屏/点按）靠它，语音对话不需要 —— 同样是可选建议 */
+    ACCESSIBILITY_SETTINGS
 }
 
 /** 一条"还不能开始"的原因 + 一处可点的去处 */
@@ -101,6 +104,15 @@ object HomePreflight {
             tips += PreflightProblem(
                 context.getString(R.string.preflight_battery_optional),
                 PreflightFix.BATTERY_OPTIMIZATION,
+                optional = true
+            )
+        }
+        // 无障碍服务：不开的话「读屏/点按/滑动」这批手机控制能力用不了，语音对话本身不受影响
+        if (!runCatching { com.openclaw.assistant.bridge.accessibility.AgentVoiceAccessibilityService.isRunning() }
+                .getOrDefault(false)) {
+            tips += PreflightProblem(
+                context.getString(R.string.preflight_accessibility_optional),
+                PreflightFix.ACCESSIBILITY_SETTINGS,
                 optional = true
             )
         }

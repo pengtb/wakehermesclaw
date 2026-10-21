@@ -1911,6 +1911,11 @@ fun SettingsScreen(
                                     selectedSettingsCategoryName = SettingsCategory.Voice.name
                                 com.openclaw.assistant.ui.PreflightFix.BACKEND_SETTINGS ->
                                     selectedSettingsCategoryName = SettingsCategory.Backend.name
+                                com.openclaw.assistant.ui.PreflightFix.ACCESSIBILITY_SETTINGS -> {
+                                    runCatching {
+                                        diagContext.startActivity(Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                                    }
+                                }
                                 com.openclaw.assistant.ui.PreflightFix.RESTART_APP ->
                                     com.openclaw.assistant.service.VoiceRecovery.restartProcess(
                                         diagContext,
