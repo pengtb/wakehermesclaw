@@ -131,7 +131,7 @@ agentvoice://setup?hu=<API地址>&hk=<key>&hm=<profile>&hr=1&hs=1&htu=<dashboard
 
 1. 手机上打开「设置 → 移动桥接」，开启后页面显示 6 位配对码，以及一条 `agentvoice://pair?u=<桥接地址>&c=<配对码>` 深链。
 2. 电脑上执行 `agentvoice-pair --code <配对码> --write-env <路径>`，或直接 `POST {"code":"<配对码>"}` 到 `http://<手机>:8787/pair`。
-3. 换回来的 token 写进 `.env` 的 `AGENT_VOICE_BRIDGE_URL` / `AGENT_VOICE_BRIDGE_TOKEN`，之后每次调用带 `Authorization: Bearer <token>`。
+3. 换回来的 token 写进 `.env` 的 `AGENT_VOICE_BRIDGE_URL` / `AGENT_VOICE_BRIDGE_TOKEN`；之后每次调用都在 `Authorization` 头里带上 `Bearer` 和这个 token。
 
 配对码一次性、带有效期。拿到 token 后不再需要配对，但发短信、拍照、点按这类高风险能力仍然逐次弹批准。
 

@@ -131,7 +131,7 @@ Le QR code contient la clé API et le session token : c'est l'équivalent d'un m
 
 1. Sur le téléphone, ouvrez « Réglages → Pont mobile » ; une fois activé, la page affiche le code d'appairage à 6 chiffres ainsi qu'un deep link `agentvoice://pair?u=<adresse du pont>&c=<code d'appairage>`.
 2. Sur l'ordinateur, exécutez `agentvoice-pair --code <code d'appairage> --write-env <chemin>`, ou envoyez directement `POST {"code":"<code d'appairage>"}` à `http://<téléphone>:8787/pair`.
-3. Le token obtenu se place dans le `.env` sous `AGENT_VOICE_BRIDGE_URL` / `AGENT_VOICE_BRIDGE_TOKEN` ; chaque appel ultérieur porte l'en-tête `Authorization: Bearer ...`.
+3. Le token obtenu se place dans le `.env` sous `AGENT_VOICE_BRIDGE_URL` / `AGENT_VOICE_BRIDGE_TOKEN` ; chaque appel ultérieur envoie l'en-tête `Authorization` avec `Bearer` suivi du token.
 
 Le code d'appairage est à usage unique et a une durée de validité. Une fois le token obtenu, l'appairage n'est plus nécessaire, mais les capacités à risque comme l'envoi de SMS, la photo ou les appuis à l'écran demandent toujours une approbation à chaque appel.
 

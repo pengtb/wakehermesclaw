@@ -131,7 +131,7 @@ QR 코드에는 API key와 session token이 들어 있어 비밀번호와 같으
 
 1. 휴대폰에서 「설정 → 모바일 브리지」를 열고 켜면 페이지에 6자리 페어링 코드와 `agentvoice://pair?u=<브리지 주소>&c=<페어링 코드>` 딥링크가 표시됩니다.
 2. 컴퓨터에서 `agentvoice-pair --code <페어링 코드> --write-env <경로>`를 실행하거나, `POST {"code":"<페어링 코드>"}`를 `http://<휴대폰>:8787/pair`로 직접 보냅니다.
-3. 돌려받은 token을 `.env`의 `AGENT_VOICE_BRIDGE_URL` / `AGENT_VOICE_BRIDGE_TOKEN`에 기록하고, 이후 모든 호출에 `Authorization: Bearer <token>`을 붙입니다.
+3. 돌려받은 token을 `.env`의 `AGENT_VOICE_BRIDGE_URL` / `AGENT_VOICE_BRIDGE_TOKEN`에 기록하고, 이후 모든 호출은 `Authorization` 헤더에 `Bearer` 와 토큰을 함께 담아 보냅니다.
 
 페어링 코드는 일회성이며 유효 기간이 있습니다. token을 받은 뒤에는 페어링이 필요 없지만, 문자 발송·사진 촬영·탭 같은 고위험 기능은 여전히 매번 승인을 요구합니다.
 

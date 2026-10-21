@@ -131,7 +131,7 @@ QR コードには API key と session token が含まれ、パスワードと�
 
 1. スマホで「設定 → モバイルブリッジ」を開き、有効にすると 6 桁のペアリングコードと `agentvoice://pair?u=<ブリッジアドレス>&c=<ペアリングコード>` のディープリンクが表示されます。
 2. PC 上で `agentvoice-pair --code <ペアリングコード> --write-env <パス>` を実行するか、`{"code":"<ペアリングコード>"}` を `http://<スマホ>:8787/pair` に直接 `POST` します。
-3. 返ってきた token を `.env` の `AGENT_VOICE_BRIDGE_URL` / `AGENT_VOICE_BRIDGE_TOKEN` に書き込みます。以後の呼び出しには毎回 `Authorization: Bearer ***` を付けます。
+3. 返ってきた token を `.env` の `AGENT_VOICE_BRIDGE_URL` / `AGENT_VOICE_BRIDGE_TOKEN` に書き込みます。以後の呼び出しでは毎回 `Authorization` ヘッダーに `Bearer` とこの token を付けます。
 
 ペアリングコードは 1 回限りで、有効期限があります。token を取得した後はペアリング不要になりますが、SMS 送信・写真撮影・タップといったリスクの高いケイパビリティは引き続き毎回承認ダイアログを経由します。
 

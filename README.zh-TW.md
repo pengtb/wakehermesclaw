@@ -131,7 +131,7 @@ QR code 內含 API key 與 session token，等同密碼，不要外流。
 
 1. 手機上開啟「設定 → 行動橋接」，開啟後頁面會顯示 6 位數配對碼，以及一條 `agentvoice://pair?u=<橋接位址>&c=<配對碼>` 深層連結。
 2. 電腦上執行 `agentvoice-pair --code <配對碼> --write-env <路徑>`，或直接 `POST {"code":"<配對碼>"}` 到 `http://<手機>:8787/pair`。
-3. 換回來的 token 寫進 `.env` 的 `AGENT_VOICE_BRIDGE_URL` / `AGENT_VOICE_BRIDGE_TOKEN`，之後每次呼叫帶 `Authorization: Bearer ***`
+3. 換回來的 token 寫進 `.env` 的 `AGENT_VOICE_BRIDGE_URL` / `AGENT_VOICE_BRIDGE_TOKEN`；之後每次呼叫都在 `Authorization` 標頭裡帶上 `Bearer` 和這個 token。
 
 配對碼一次性、帶有效期限。拿到 token 後不再需要配對，但傳簡訊、拍照、點按這類高風險能力仍然每次都會跳出核准。
 

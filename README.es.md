@@ -131,7 +131,7 @@ El código QR contiene la API key y el session token; equivalen a una contraseñ
 
 1. En el teléfono abre «Ajustes → Puente móvil»; al activarlo, la página muestra un código de emparejamiento de 6 dígitos y un enlace profundo `agentvoice://pair?u=<dirección del puente>&c=<código>`.
 2. En el ordenador ejecuta `agentvoice-pair --code <código> --write-env <ruta>`, o haz directamente `POST {"code":"<código>"}` a `http://<teléfono>:8787/pair`.
-3. El token que se devuelve se escribe en `AGENT_VOICE_BRIDGE_URL` / `AGENT_VOICE_BRIDGE_TOKEN` del `.env`; a partir de ahí, cada llamada envía la cabecera `Authorization: Bearer` con ese token.
+3. El token que se devuelve se escribe en `AGENT_VOICE_BRIDGE_URL` / `AGENT_VOICE_BRIDGE_TOKEN` del `.env`; a partir de ahí, cada llamada envía la cabecera `Authorization` con `Bearer` seguido del token.
 
 El código de emparejamiento es de un solo uso y tiene caducidad. Una vez obtenido el token ya no hace falta emparejar, pero las capacidades de alto riesgo, como enviar SMS, hacer fotos o pulsar, siguen pidiendo aprobación cada vez.
 

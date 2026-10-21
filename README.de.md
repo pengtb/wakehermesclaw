@@ -131,7 +131,7 @@ Der QR-Code enthält API-Key und Session-Token, also Passwort-Äquivalent — ni
 
 1. Auf dem Telefon „Einstellungen → Mobile Bridge" öffnen; nach dem Einschalten zeigt die Seite einen 6-stelligen Kopplungscode und einen Deep-Link `agentvoice://pair?u=<Bridge-Adresse>&c=<Kopplungscode>`.
 2. Auf dem Rechner `agentvoice-pair --code <Kopplungscode> --write-env <Pfad>` ausführen oder direkt `POST {"code":"<Kopplungscode>"}` an `http://<Telefon>:8787/pair` schicken.
-3. Das zurückgegebene Token in der `.env` unter `AGENT_VOICE_BRIDGE_URL` / `AGENT_VOICE_BRIDGE_TOKEN` eintragen, danach bei jedem Aufruf `Authorization: Bearer <token>` mitschicken.
+3. Das zurückgegebene Token in der `.env` unter `AGENT_VOICE_BRIDGE_URL` / `AGENT_VOICE_BRIDGE_TOKEN` eintragen; jeder weitere Aufruf schickt den Header `Authorization` mit `Bearer` gefolgt vom Token.
 
 Der Kopplungscode ist einmalig und zeitlich begrenzt. Nach dem Token ist keine erneute Kopplung nötig, risikoreiche Fähigkeiten wie SMS senden, Foto oder Tippen lösen aber weiterhin jedes Mal eine Freigabe aus.
 

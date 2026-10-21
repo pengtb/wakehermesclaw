@@ -131,7 +131,7 @@ The QR code contains the API key and session token, so it is equivalent to a pas
 
 1. On the phone open Settings → Mobile Bridge; once enabled, the page shows a 6-digit pairing code along with an `agentvoice://pair?u=<桥接地址>&c=<配对码>` deep link.
 2. On the computer run `agentvoice-pair --code <配对码> --write-env <路径>`, or `POST {"code":"<配对码>"}` directly to `http://<手机>:8787/pair`.
-3. Write the returned token into `.env` as `AGENT_VOICE_BRIDGE_URL` / `AGENT_VOICE_BRIDGE_TOKEN`; every call afterwards carries `Authorization: Bearer <token>`.
+3. Write the returned token into `.env` as `AGENT_VOICE_BRIDGE_URL` / `AGENT_VOICE_BRIDGE_TOKEN`; every call afterwards sends the `Authorization` header, whose value is `Bearer` followed by the token.
 
 The pairing code is one-time and has an expiry. Once you have the token, pairing is no longer needed, but high-risk capabilities such as sending SMS, taking photos and tapping still prompt for approval on each call.
 
