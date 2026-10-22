@@ -225,7 +225,6 @@ Le détail des modifications se lit dans `git log` ; les arbitrages d'architectu
 
 ## Limitations connues
 
-- `apps.launch` : lancer une Activity depuis l'arrière-plan se heurte aux restrictions d'Android 10+ ; le résultat dépend du système. Il vérifie désormais après le lancement : avec l'accessibilité active il renvoie `verified` et le paquet réellement au premier plan, `BAL_BLOCKED` si le lancement est bloqué, `verified:false` sans accessibilité. Sur l'appareil Android 16 de l'auteur, rien n'est bloqué : Réglages, NetEase Cloud Music et WeChat démarrent depuis l'arrière-plan.
 - `brightness.set` nécessite `WRITE_SETTINGS` ; sans autorisation, la capacité n'est pas visible.
 - Un paquet auto-compilé (nom de package différent) n'obtient pas le module de scan ML Kit de Google Play, le scan dans l'app est donc inutilisable ; on peut contourner en scannant le QR code de deep link avec l'appareil photo du système.
 - La reconnaissance et la synthèse de Huawei HMS ne prennent en charge que le chinois et l'anglais.

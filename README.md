@@ -225,7 +225,6 @@ app/src/main/java/com/openclaw/assistant/
 
 ## 已知限制
 
-- `apps.launch` 从后台启动 Activity 会遇到 Android 10+ 的后台启动限制，具体是否放行取决于系统。现在启动后会核实：无障碍开着就返回 `verified` 与真实前台包名，被拦时给 `BAL_BLOCKED`；没开无障碍则标 `verified:false`。作者的 Android 16 机器上实测不拦，设置、网易云、微信都能从后台拉起。
 - `brightness.set` 需要 `WRITE_SETTINGS`，没授权时能力不可见。
 - 自编译包（包名不同）拿不到 Google Play 的 ML Kit 扫码模块，App 内扫码不可用；可以用系统相机扫深链二维码绕过。
 - 华为 HMS 的识别与合成只支持中文和英文。

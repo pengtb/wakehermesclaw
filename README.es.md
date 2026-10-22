@@ -225,7 +225,6 @@ El detalle de los cambios se puede seguir con `git log`; las decisiones de arqui
 
 ## Limitaciones conocidas
 
-- `apps.launch` al iniciar una Activity desde segundo plano choca con las restricciones de inicio en segundo plano de Android 10+; si pasa o no depende del sistema. Ahora verifica tras lanzar: con accesibilidad activa devuelve `verified` y el paquete real en primer plano, si se bloquea `BAL_BLOCKED`, y sin accesibilidad `verified:false`. En el dispositivo Android 16 del autor no se bloquea: Ajustes, NetEase Cloud Music y WeChat arrancan desde segundo plano.
 - `brightness.set` necesita `WRITE_SETTINGS`; sin ese permiso la capacidad no es visible.
 - Los paquetes compilados por uno mismo (con otro nombre de paquete) no obtienen el módulo de escaneo de ML Kit de Google Play y el escaneo dentro de la app no está disponible; se puede sortear escaneando el código QR del enlace profundo con la cámara del sistema.
 - El reconocimiento y la síntesis de Huawei HMS solo admiten chino e inglés.

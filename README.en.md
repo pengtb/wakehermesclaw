@@ -225,7 +225,6 @@ For the detailed diff, follow `git log`; the architectural trade-offs and the pi
 
 ## Known limitations
 
-- `apps.launch` starting an Activity from the background runs into Android 10+'s background launch restrictions, and whether it goes through depends on the system. It now verifies after starting: with accessibility on it returns `verified` and the real foreground package, reports `BAL_BLOCKED` when blocked, and marks `verified:false` when accessibility is off. On the author's Android 16 device it is not blocked — Settings, NetEase Cloud Music and WeChat all launch from the background.
 - `brightness.set` needs `WRITE_SETTINGS`; without the permission the capability isn't visible.
 - Self-compiled builds (with a different package name) don't get the Google Play ML Kit barcode module, so in-app scanning is unavailable; you can work around it by scanning the deep-link QR code with the system camera.
 - Huawei HMS recognition and synthesis support Chinese and English only.

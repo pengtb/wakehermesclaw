@@ -225,7 +225,6 @@ app/src/main/java/com/openclaw/assistant/
 
 ## 알려진 제한 사항
 
-- `apps.launch`로 백그라운드에서 Activity를 시작하면 Android 10+의 백그라운드 시작 제한에 걸릴 수 있고, 통과 여부는 시스템에 따라 다릅니다. 이제 시작 후 검증합니다: 접근성이 켜져 있으면 `verified`와 실제 포그라운드 패키지를, 막히면 `BAL_BLOCKED`를, 접근성이 꺼져 있으면 `verified:false`를 반환합니다. 작성자의 Android 16 기기에서는 막히지 않았고 설정·NetEase Cloud Music·WeChat 모두 백그라운드에서 실행됐습니다.
 - `brightness.set`에는 `WRITE_SETTINGS`가 필요하며, 권한이 없으면 해당 기능이 보이지 않습니다.
 - 자체 빌드 패키지(패키지 이름이 다름)는 Google Play의 ML Kit 스캔 모듈을 받을 수 없어 앱 내 스캔을 사용할 수 없습니다. 시스템 카메라로 딥링크 QR 코드를 스캔하면 우회할 수 있습니다.
 - 화웨이 HMS의 인식과 합성은 중국어와 영어만 지원합니다.

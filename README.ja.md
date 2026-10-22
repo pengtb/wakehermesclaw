@@ -225,7 +225,6 @@ app/src/main/java/com/openclaw/assistant/
 
 ## 既知の制限
 
-- `apps.launch` でバックグラウンドから Activity を起動すると Android 10 以降のバックグラウンド起動制限に当たり、通るかどうかは端末次第です。起動後に検証するようにしました：アクセシビリティが有効なら `verified` と実際の前面パッケージ、ブロックされた場合は `BAL_BLOCKED`、無効なら `verified:false` を返します。作者の Android 16 端末ではブロックされず、設定・NetEase Cloud Music・WeChat はいずれもバックグラウンドから起動できました。
 - `brightness.set` には `WRITE_SETTINGS` が必要で、権限がない場合はケイパビリティが表示されません。
 - 自前ビルド（パッケージ名が異なる）では Google Play の ML Kit スキャンモジュールを取得できず、アプリ内のスキャンは使用できません。システムカメラでディープリンクの QR コードを読み取ることで回避できます。
 - Huawei HMS の認識と合成は中国語と英語のみ対応しています。

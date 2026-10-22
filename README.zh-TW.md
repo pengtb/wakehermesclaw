@@ -225,7 +225,6 @@ app/src/main/java/com/openclaw/assistant/
 
 ## 已知限制
 
-- `apps.launch` 從背景啟動 Activity 會遇到 Android 10+ 的背景啟動限制，是否放行取決於系統。現在啟動後會核對：無障礙開著就回傳 `verified` 與真實前景包名，被攔下時給 `BAL_BLOCKED`；沒開無障礙則標 `verified:false`。作者的 Android 16 機器實測不攔，設定、網易雲、微信都能從背景拉起。
 - `brightness.set` 需要 `WRITE_SETTINGS`，未授權時該能力不會顯示。
 - 自行編譯的套件（套件名稱不同）拿不到 Google Play 的 ML Kit 掃碼模組，App 內掃碼無法使用；可改用系統相機掃描深層連結 QR code 繞過。
 - 華為 HMS 的辨識與合成只支援中文和英文。

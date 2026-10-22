@@ -225,7 +225,6 @@ Details lassen sich über `git log` nachvollziehen; Architekturentscheidungen un
 
 ## Bekannte Einschränkungen
 
-- `apps.launch` stößt beim Start einer Activity aus dem Hintergrund an die Hintergrund-Start-Beschränkungen ab Android 10; ob es durchgeht, hängt vom System ab. Jetzt wird nach dem Start geprüft: mit aktivierter Bedienungshilfe kommen `verified` und das echte Vordergrund-Paket zurück, bei Blockade `BAL_BLOCKED`, ohne Bedienungshilfe `verified:false`. Auf dem Android-16-Gerät des Autors wird nicht blockiert — Einstellungen, NetEase Cloud Music und WeChat starten aus dem Hintergrund.
 - `brightness.set` braucht `WRITE_SETTINGS`, ohne Berechtigung ist die Fähigkeit unsichtbar.
 - Selbst gebaute Pakete (abweichender Paketname) erhalten das ML-Kit-Scan-Modul von Google Play nicht, der Scan in der App ist nicht nutzbar; als Umweg den Scanner der Systemkamera für Deep-Link-QR-Codes nutzen.
 - Huawei HMS unterstützt bei Erkennung und Synthese nur Chinesisch und Englisch.
