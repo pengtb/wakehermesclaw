@@ -87,6 +87,12 @@
         <intent>
             <action android:name="android.speech.RecognitionService" />
         </intent>
+        <!-- 包可见性：桌面能点开的应用。apps.list 的 launchable 判定与实际启动都靠这一条；
+             没有它（或 QUERY_ALL_PACKAGES），Android 11+ 上只能看到系统 forceQueryable 的那些包。 -->
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
     </queries>
 
     <application
