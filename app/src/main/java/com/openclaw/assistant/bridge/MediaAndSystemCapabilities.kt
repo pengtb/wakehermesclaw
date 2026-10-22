@@ -113,6 +113,108 @@ object MediaPreviousCapability : BridgeCapability {
     }
 }
 
+object MediaStatusCapability : BridgeCapability {
+    override val name = "media.status"
+    override val description = "Read what is currently playing: app, title/artist/album, playback state, position"
+    override val group = "media"
+    override val riskLevel = RiskLevel.LOW
+
+    /**
+     * 只读：用 MediaSessionManager 拿活动会话。它要求调用方是已启用的
+     * NotificationListenerService —— 本应用已有 OpenClawNotificationListenerService，
+     * 用户开启通知读取后即可用；没开时不用静默失败，返回可操作的 reason。
+     */
+    override suspend fun execute(context: Context, arguments: JsonObject): JsonObject = withContext(Dispatchers.IO) {
+        val manager = context.getSystemService(Context.MEDIA_SESSION_SERVICE) as? android.media.session.MediaSessionManager
+            ?: return@withContext buildJsonObject {
+                put("ok", false)
+                put("reason", "MEDIA_SESSION_MANAGER_UNAVAILABLE")
+            }
+
+        val listener = android.content.ComponentName(
+            context,
+            com.openclaw.assistant.service.OpenClawNotificationListenerService::class.java
+        )
+
+        val controllers = try {
+            manager.getActiveSessions(listener)
+        } catch (e: SecurityException) {
+            return@withContext buildJsonObject {
+                put("ok", false)
+                put("reason", "NOTIFICATION_ACCESS_REQUIRED")
+                put("hint", "在系统设置里给本应用开启通知使用权后重试")
+            }
+        } catch (e: Exception) {
+            return@withContext buildJsonObject {
+                put("ok", false)
+                put("reason", "MEDIA_SESSION_ERROR")
+                put("message", e.message ?: e.javaClass.simpleName)
+            }
+        }
+
+        val pm = context.packageManager
+        val sessions = buildJsonArray {
+            controllers.forEach { c ->
+                val ps = c.playbackState
+                val md = c.metadata
+                val pkg = c.packageName
+                add(buildJsonObject {
+                    put("packageName", pkg)
+                    put(
+                        "label",
+                        runCatching {
+                            pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString()
+                        }.getOrDefault(pkg)
+                    )
+                    put("title", md?.getString(android.media.MediaMetadata.METADATA_KEY_TITLE).orEmpty())
+                    put("artist", md?.getString(android.media.MediaMetadata.METADATA_KEY_ARTIST).orEmpty())
+                    put("album", md?.getString(android.media.MediaMetadata.METADATA_KEY_ALBUM).orEmpty())
+                    put("durationMs", md?.getLong(android.media.MediaMetadata.METADATA_KEY_DURATION) ?: 0L)
+                    put("state", ps?.state ?: android.media.session.PlaybackState.STATE_NONE)
+                    put("stateName", playbackStateName(ps?.state))
+                    put(
+                        "playing",
+                        ps?.state == android.media.session.PlaybackState.STATE_PLAYING ||
+                            ps?.state == android.media.session.PlaybackState.STATE_BUFFERING
+                    )
+                    // 位置随会话上报，可能不连续；一并给出上报时刻，调用方可自己按 speed 外推
+                    put("positionMs", ps?.position ?: 0L)
+                    put("speed", ps?.playbackSpeed ?: 1f)
+                    put("updatedAtMs", ps?.lastPositionUpdateTime ?: 0L)
+                })
+            }
+        }
+
+        buildJsonObject {
+            put("ok", true)
+            put("sessions", sessions)
+            put("count", controllers.size)
+            put(
+                "activePackage",
+                controllers.firstOrNull {
+                    it.playbackState?.state == android.media.session.PlaybackState.STATE_PLAYING
+                }?.packageName ?: controllers.firstOrNull()?.packageName ?: ""
+            )
+        }
+    }
+
+    private fun playbackStateName(state: Int?): String = when (state) {
+        android.media.session.PlaybackState.STATE_NONE -> "none"
+        android.media.session.PlaybackState.STATE_STOPPED -> "stopped"
+        android.media.session.PlaybackState.STATE_PAUSED -> "paused"
+        android.media.session.PlaybackState.STATE_PLAYING -> "playing"
+        android.media.session.PlaybackState.STATE_FAST_FORWARDING -> "fast_forwarding"
+        android.media.session.PlaybackState.STATE_REWINDING -> "rewinding"
+        android.media.session.PlaybackState.STATE_BUFFERING -> "buffering"
+        android.media.session.PlaybackState.STATE_ERROR -> "error"
+        android.media.session.PlaybackState.STATE_CONNECTING -> "connecting"
+        android.media.session.PlaybackState.STATE_SKIPPING_TO_PREVIOUS -> "skipping_previous"
+        android.media.session.PlaybackState.STATE_SKIPPING_TO_NEXT -> "skipping_next"
+        android.media.session.PlaybackState.STATE_SKIPPING_TO_QUEUE_ITEM -> "skipping_queue_item"
+        else -> "unknown"
+    }
+}
+
 object BrightnessGetCapability : BridgeCapability {
     override val name = "brightness.get"
     override val description = "Read system screen brightness (0..255)"
@@ -318,7 +420,7 @@ object FullPlusCapabilities {
     val all: List<BridgeCapability> = FullCapabilities.all + listOf(
         ClipboardWriteCapability,
         AudioVolumeGetCapability, AudioVolumeSetCapability,
-        MediaPlayPauseCapability, MediaNextCapability, MediaPreviousCapability,
+        MediaPlayPauseCapability, MediaNextCapability, MediaPreviousCapability, MediaStatusCapability,
         BrightnessGetCapability, BrightnessSetCapability,
         NotificationDismissCapability,
         ScreenScreenshotCapability,
