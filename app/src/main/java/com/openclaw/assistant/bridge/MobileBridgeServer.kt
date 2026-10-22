@@ -81,13 +81,24 @@ open class MobileBridgeServer(
     private suspend fun acceptLoop(socket: ServerSocket) {
         val s = scope ?: return
         while (s.isActive && !socket.isClosed) {
-            val client = try { socket.accept() } catch (_: IOException) { return }
+            val client = try {
+                socket.accept()
+            } catch (e: IOException) {
+                // 以前这里直接 return：accept() 偶尔抛一次（EMFILE / ECONNABORTED）就把整个
+                // accept 循环干掉，而 ServerSocket 仍然处于 listen 状态 —— 现象就是端口在听、
+                // 连接全部超时，只能手动关开桥接。这里改成没关就继续等。
+                if (socket.isClosed || !s.isActive) return
+                kotlinx.coroutines.delay(100)
+                continue
+            }
             s.launch { handleClient(client) }
         }
     }
 
     internal suspend fun handleClient(client: Socket) {
         client.use { sock ->
+            // 没有读超时的话，一个连上来不发数据的客户端会永久占住一个 IO 线程
+            runCatching { sock.soTimeout = 20_000 }
             val reader = BufferedReader(InputStreamReader(sock.getInputStream(), Charsets.UTF_8))
             val request = readRequest(reader) ?: run {
                 writeResponse(sock.getOutputStream(), 400, errorJson("bad_request", "Malformed request"))

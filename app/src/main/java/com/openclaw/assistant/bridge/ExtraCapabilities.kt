@@ -7,6 +7,7 @@ import android.content.pm.PackageManager
 import android.location.LocationManager
 import android.net.wifi.WifiManager
 import androidx.core.content.ContextCompat
+import com.openclaw.assistant.bridge.accessibility.AgentVoiceAccessibilityService
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.add
@@ -61,7 +62,7 @@ object LocationGetCapability : BridgeCapability {
 
 object AppsLaunchCapability : BridgeCapability {
     override val name = "apps.launch"
-    override val description = "Launch an installed app by package name"
+    override val description = "Launch an installed app by package name; reports whether the foreground actually changed"
     override val group = "apps"
     override val riskLevel = RiskLevel.MEDIUM
     override val inputSchema = buildJsonObject {
@@ -77,8 +78,48 @@ object AppsLaunchCapability : BridgeCapability {
         val intent = context.packageManager.getLaunchIntentForPackage(pkg)
         if (intent == null) return buildJsonObject { put("launched", false); put("reason", "not installed") }
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        context.startActivity(intent)
-        return buildJsonObject { put("launched", true); put("packageName", pkg) }
+
+        // 后台启动 Activity（BAL）在 Android 10+ 会被系统静默丢弃，startActivity() 本身不报错。
+        // 以前这里直接回 launched:true，等于假报成功；现在启动后用无障碍读一次前台包名来核实，
+        // 读不到（无障碍没开）就如实标 verified:false，让调用方自己决定信不信。
+        val launched = runCatching { context.startActivity(intent) }.isSuccess
+        if (!launched) {
+            return buildJsonObject {
+                put("launched", false)
+                put("reason", "START_ACTIVITY_FAILED")
+                put("packageName", pkg)
+            }
+        }
+
+        val service = AgentVoiceAccessibilityService.get()
+        if (service == null) {
+            return buildJsonObject {
+                put("launched", true)
+                put("verified", false)
+                put("packageName", pkg)
+                put("note", "无障碍服务没开，无法核实前台是否真的切换")
+            }
+        }
+
+        var foreground: String? = null
+        repeat(6) { i ->
+            if (i > 0) kotlinx.coroutines.delay(250)
+            foreground = runCatching { service.rootInActiveWindow?.packageName?.toString() }.getOrNull()
+            if (foreground == pkg) return buildJsonObject {
+                put("launched", true)
+                put("verified", true)
+                put("packageName", pkg)
+                put("foreground", foreground ?: "")
+            }
+        }
+
+        return buildJsonObject {
+            put("launched", false)
+            put("verified", true)
+            put("packageName", pkg)
+            put("foreground", foreground ?: "")
+            put("reason", "BAL_BLOCKED")
+        }
     }
 }
 
