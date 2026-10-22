@@ -75,7 +75,7 @@ Drei Backend-Typen; Sprache und Chat wählen jeweils unabhängig:
 
 ### Telefonsteuerung (Mobile Bridge)
 
-Das Telefon startet selbst einen lokalen HTTP-Dienst (Standard 8787), darüber ruft Hermes die Fähigkeiten des Telefons auf: Bildschirm lesen und Oberfläche bedienen (`screen.tap/swipe/long_press/drag/back/home`, `screen.find_nodes`, `screen.window.describe`), Screenshot (zweistufig, JPEG), Foto, Standort, SMS, Kontakte, Kalender, Benachrichtigungen lesen und löschen, Zwischenablage, Mediensteuerung, Lautstärke und Helligkeit, App-Liste und App-Start.
+Das Telefon startet selbst einen lokalen HTTP-Dienst (Standard 8787), über den Hermes die Funktionen des Telefons aufruft: Bildschirm lesen und UI bedienen (`screen.tap/swipe/long_press/drag/back/home`, `screen.find_nodes`, `screen.window.describe`), Screenshots (zweistufig, JPEG), Kamera, Standort, SMS, Kontakte, Kalender, Benachrichtigungen lesen und entfernen, Zwischenablage, Mediensteuerung (`media.play_pause/next/previous`, zusätzlich `media.status` für Titel, Interpret, Album und Position), Lautstärke und Helligkeit, App-Liste (`apps.list`, Apps mit Launcher-Eintrag, markiert mit `system` / `launchable`) und Starten (`apps.launch`, prüft, ob der Vordergrund tatsächlich gewechselt hat).
 
 - Einmalige Kopplung: nach dem Einschalten der Bridge in der App erscheint ein 6-stelliger Kopplungscode, die Rechnerseite tauscht den Code gegen ein Token, danach entfällt die Kopplung.
 - Berechtigung und Freigabe: Freigabe nach Fähigkeitsgruppen, risikoreiche Aktionen (SMS senden, Foto, Oberflächenbedienung) laufen über einen Bestätigungsdialog, dazu kommen Rate-Limits.
@@ -100,7 +100,7 @@ Nach der Installation drei Dinge in der App:
 
 1. **Backend hinzufügen**: unter „Einstellungen → Verbindung" Adresse und Token von Hermes eintragen (oder Host / Port des OpenClaw-Gateways).
 2. **Als digitalen Assistenten setzen**: die App zum Standard-Assistenten machen, sonst lässt sie sich per langem Druck auf die Navigationsleiste nicht aufrufen.
-3. **Berechtigungen geben**: Mikrofon ist Pflicht; Standort, Kamera, SMS, Kontakte und Kalender nach den Fähigkeiten, die genutzt werden sollen; für Telefonsteuerung zusätzlich den Bedienungshilfe-Dienst einschalten.
+3. **Berechtigungen geben**: Mikrofon ist Pflicht; Standort, Kamera, SMS, Kontakte und Kalender nach den Fähigkeiten, die genutzt werden sollen; für Telefonsteuerung zusätzlich den Bedienungshilfe-Dienst einschalten. Per Sideload installierte Apps müssen zuerst unter „App-Info → ⋮ → Eingeschränkte Einstellungen zulassen“ freigegeben werden, sonst lässt das System die Bedienungshilfe nicht aktivieren.
 
 Spracherkennung und -synthese nutzen standardmäßig die Systemfähigkeiten, auch ohne Konfiguration kommt Ton und Erkennung zustande.
 
@@ -206,6 +206,10 @@ Upstream ist `yuga-hashimoto/openclaw-assistant`. Die Änderungen dieses Branche
 - SMS-Versand wartet auf das `sentIntent`-Ergebnis, geliefert wird der echte Ergebniscode.
 - Bedienungshilfen-Gesten werden im Hauptthread ausgeliefert und warten auf den Callback, behebt still fehlschlagende tap / swipe; `screen.window.describe` liest das aktive Fenster, der Paketname wird nicht mehr falsch gemeldet.
 - Fähigkeitsgruppen um `location` / `screen` erweitert; die Bridge-Statuskarte hat zwei Zeilen „aktuell auf / geplant auf", nach einer Konfigurationsänderung direkt vergleichbar.
+- Neu: `media.status` liest die laufende App, Titel, Interpret, Album, Position und Status aus – zusammen mit den drei vorhandenen Steuertasten.
+- `apps.list` zählt jetzt nach Launcher-Einträgen und markiert `system` / `launchable` (MAIN/LAUNCHER in `<queries>` deklariert, kein `QUERY_ALL_PACKAGES`).
+- `apps.launch` prüft nach dem Start, ob der Vordergrund wirklich gewechselt hat, statt pauschal Erfolg zu melden.
+- Die accept-Schleife der Bridge beendet sich nicht mehr bei einem einzelnen `IOException`; damit entfällt der Zustand „Port lauscht, alle Verbindungen laufen in ein Timeout“.
 
 **Alltag**
 
@@ -221,7 +225,7 @@ Details lassen sich über `git log` nachvollziehen; Architekturentscheidungen un
 
 ## Bekannte Einschränkungen
 
-- `apps.launch` wird beim Start einer Activity aus dem Hintergrund von der Hintergrund-Start-Beschränkung ab Android 10 blockiert; der Aufruf meldet Erfolg, der Vordergrund wechselt aber nicht.
+- `apps.launch` stößt beim Start einer Activity aus dem Hintergrund an die Hintergrund-Start-Beschränkungen ab Android 10; ob es durchgeht, hängt vom System ab. Jetzt wird nach dem Start geprüft: mit aktivierter Bedienungshilfe kommen `verified` und das echte Vordergrund-Paket zurück, bei Blockade `BAL_BLOCKED`, ohne Bedienungshilfe `verified:false`. Auf dem Android-16-Gerät des Autors wird nicht blockiert — Einstellungen, NetEase Cloud Music und WeChat starten aus dem Hintergrund.
 - `brightness.set` braucht `WRITE_SETTINGS`, ohne Berechtigung ist die Fähigkeit unsichtbar.
 - Selbst gebaute Pakete (abweichender Paketname) erhalten das ML-Kit-Scan-Modul von Google Play nicht, der Scan in der App ist nicht nutzbar; als Umweg den Scanner der Systemkamera für Deep-Link-QR-Codes nutzen.
 - Huawei HMS unterstützt bei Erkennung und Synthese nur Chinesisch und Englisch.

@@ -75,7 +75,7 @@ Se admiten tres tipos de backend; la voz y el chat eligen cada uno por su cuenta
 
 ### Control del teléfono (Mobile Bridge)
 
-El teléfono levanta su propio servidor HTTP local (8787 por defecto) y Hermes llama a través de él a las capacidades del teléfono en sentido inverso: lectura de pantalla y operaciones de interfaz (`screen.tap/swipe/long_press/drag/back/home`, `screen.find_nodes`, `screen.window.describe`), captura de pantalla (en dos pasos, JPEG), fotos, ubicación, SMS, contactos, calendario, lectura y borrado de notificaciones, portapapeles, control multimedia, volumen y brillo, lista y lanzamiento de aplicaciones.
+El teléfono levanta su propio servidor HTTP local (8787 por defecto) y Hermes llama a través de él a las capacidades del teléfono: leer la pantalla y manejar la interfaz (`screen.tap/swipe/long_press/drag/back/home`, `screen.find_nodes`, `screen.window.describe`), capturas (en dos pasos, JPEG), cámara, ubicación, SMS, contactos, calendario, lectura y descarte de notificaciones, portapapeles, control multimedia (`media.play_pause/next/previous`, más `media.status` para título, artista, álbum y posición), volumen y brillo, lista de aplicaciones (`apps.list`, solo con entrada en el lanzador, marcadas `system` / `launchable`) y apertura (`apps.launch`, que verifica si el primer plano cambió de verdad).
 
 - Emparejamiento único: al activar el puente en la app aparece un código de emparejamiento de 6 dígitos; el ordenador canjea el código por un token y después ya no hace falta emparejar.
 - Autorización y aprobaciones: los permisos se agrupan por capacidad, las acciones de alto riesgo (enviar SMS, hacer fotos, operar la interfaz) pasan por un diálogo de confirmación y además hay límite de frecuencia.
@@ -100,7 +100,7 @@ Después de instalar, haz tres cosas en la app:
 
 1. **Añadir el backend**: en «Ajustes → Conexión» introduce la dirección y el token de Hermes (o el host / puerto de la pasarela de OpenClaw).
 2. **Establecerlo como asistente digital**: configura esta aplicación como asistente predeterminado; de lo contrario, mantener pulsada la barra de navegación no la invocará.
-3. **Dar permisos**: el micrófono es imprescindible; ubicación, cámara, SMS, contactos y calendario según las capacidades que quieras usar; si quieres control del teléfono, activa además el servicio de accesibilidad.
+3. **Dar permisos**: el micrófono es imprescindible; ubicación, cámara, SMS, contactos y calendario según las capacidades que quieras usar; si quieres control del teléfono, activa además el servicio de accesibilidad. Las apps instaladas por sideload deben permitir primero los ajustes restringidos («Información de la app → ⋮ → Permitir ajustes restringidos»); si no, el sistema no deja activar la accesibilidad.
 
 El reconocimiento y la síntesis de voz usan por defecto las capacidades del sistema: sin configurar nada ya puedes hablar y reconocer.
 
@@ -206,6 +206,10 @@ El upstream es `yuga-hashimoto/openclaw-assistant`. Los cambios que esta bifurca
 - El envío de SMS pasa a esperar el resultado de `sentIntent` antes de responder, y devuelve el código de resultado real.
 - Los gestos de accesibilidad se despachan en el hilo principal y esperan la llamada de vuelta, lo que corrige el fallo silencioso de tap / swipe; `screen.window.describe` toma la ventana activa y el nombre de paquete ya no se informa mal.
 - Se añaden los grupos de capacidades `location` / `screen`; la tarjeta de estado del puente muestra dos líneas, «actual / previsto», para poder comparar directamente después de cambiar la configuración.
+- Nuevo `media.status`: lee la app en reproducción, título, artista, álbum, posición y estado, junto a las tres teclas de control existentes.
+- `apps.list` ahora enumera por entrada del lanzador y marca `system` / `launchable` (MAIN/LAUNCHER declarado en `<queries>`, sin `QUERY_ALL_PACKAGES`).
+- `apps.launch` comprueba si el primer plano cambió de verdad, en vez de informar siempre de éxito.
+- El bucle accept del puente ya no termina con un solo `IOException`, que dejaba el puerto escuchando mientras todas las conexiones caducaban.
 
 **Uso diario**
 
@@ -221,7 +225,7 @@ El detalle de los cambios se puede seguir con `git log`; las decisiones de arqui
 
 ## Limitaciones conocidas
 
-- `apps.launch` al iniciar una Activity desde segundo plano queda bloqueado por la restricción de inicio en segundo plano de Android 10+; la llamada devuelve éxito pero el primer plano no cambia.
+- `apps.launch` al iniciar una Activity desde segundo plano choca con las restricciones de inicio en segundo plano de Android 10+; si pasa o no depende del sistema. Ahora verifica tras lanzar: con accesibilidad activa devuelve `verified` y el paquete real en primer plano, si se bloquea `BAL_BLOCKED`, y sin accesibilidad `verified:false`. En el dispositivo Android 16 del autor no se bloquea: Ajustes, NetEase Cloud Music y WeChat arrancan desde segundo plano.
 - `brightness.set` necesita `WRITE_SETTINGS`; sin ese permiso la capacidad no es visible.
 - Los paquetes compilados por uno mismo (con otro nombre de paquete) no obtienen el módulo de escaneo de ML Kit de Google Play y el escaneo dentro de la app no está disponible; se puede sortear escaneando el código QR del enlace profundo con la cámara del sistema.
 - El reconocimiento y la síntesis de Huawei HMS solo admiten chino e inglés.

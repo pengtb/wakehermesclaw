@@ -75,7 +75,7 @@ Three kinds of backend are supported, and voice and chat each choose their route
 
 ### Phone control (Mobile Bridge)
 
-The phone runs its own local HTTP server (port 8787 by default), and Hermes calls phone capabilities back through it: screen reading and UI operation (`screen.tap/swipe/long_press/drag/back/home`, `screen.find_nodes`, `screen.window.describe`), screenshots (two-stage, JPEG), camera capture, location, SMS, contacts, calendar, notification reading and dismissal, clipboard, media control, volume and brightness, app listing and launching.
+The phone runs its own local HTTP server (port 8787 by default), and Hermes calls phone capabilities through it: reading the screen and driving the UI (`screen.tap/swipe/long_press/drag/back/home`, `screen.find_nodes`, `screen.window.describe`), screenshots (two-stage, JPEG), camera capture, location, SMS, contacts, calendar, reading and dismissing notifications, clipboard, media control (`media.play_pause/next/previous`, plus `media.status` for title, artist, album and position), volume and brightness, the app list (`apps.list`, apps with a launcher entry, flagged `system` / `launchable`) and launching (`apps.launch`, which verifies the foreground actually changed).
 
 - One-time pairing: after enabling the bridge in the app a 6-digit pairing code appears; the computer exchanges the code for a token and no further pairing is needed.
 - Authorization and approval: permissions are grouped by capability, high-risk actions (sending SMS, taking photos, UI operation) go through a confirmation dialog, and there are rate limits.
@@ -100,7 +100,7 @@ After installing, do three things in the app:
 
 1. **Add a backend**: in Settings → Connection, enter the Hermes address and token (or the OpenClaw gateway host / port).
 2. **Set it as the digital assistant**: make this app the default assistant, otherwise the navigation-bar long-press won't summon it.
-3. **Grant permissions**: microphone is required; location, camera, SMS, contacts and calendar as needed for the capabilities you want; enable the accessibility service if you want phone control.
+3. **Grant permissions**: microphone is required; location, camera, SMS, contacts and calendar as needed for the capabilities you want; enable the accessibility service if you want phone control. Apps installed via sideload must first allow restricted settings (App info → ⋮ → Allow restricted settings), otherwise the system won't let you turn on accessibility.
 
 Speech recognition and synthesis use system capabilities by default — it will speak and recognize without any configuration.
 
@@ -206,6 +206,10 @@ Upstream is `yuga-hashimoto/openclaw-assistant`. The changes this fork makes on 
 - Sending SMS now waits for the `sentIntent` result before returning, so you get the real result code.
 - Accessibility gestures are dispatched on the main thread and wait for the callback, fixing tap / swipe failing silently; `screen.window.describe` reads from the active window, so the package name is no longer misreported.
 - Capability groups gained `location` / `screen`; the bridge status card splits into "currently at / intended" lines so you can compare them directly after changing config.
+- Added `media.status`: reads the playing app, title, artist, album, position and state, alongside the three existing transport keys.
+- `apps.list` now enumerates by launcher entry and flags `system` / `launchable` (MAIN/LAUNCHER declared in `<queries>`, no `QUERY_ALL_PACKAGES`).
+- `apps.launch` verifies the foreground actually changed instead of always reporting success.
+- The bridge's accept loop no longer exits on a single `IOException`, which used to leave the port listening while every connection timed out.
 
 **Everyday use**
 
@@ -221,7 +225,7 @@ For the detailed diff, follow `git log`; the architectural trade-offs and the pi
 
 ## Known limitations
 
-- `apps.launch` starting an Activity from the background is blocked by Android 10+'s background launch restrictions; the call returns success but the foreground doesn't switch.
+- `apps.launch` starting an Activity from the background runs into Android 10+'s background launch restrictions, and whether it goes through depends on the system. It now verifies after starting: with accessibility on it returns `verified` and the real foreground package, reports `BAL_BLOCKED` when blocked, and marks `verified:false` when accessibility is off. On the author's Android 16 device it is not blocked — Settings, NetEase Cloud Music and WeChat all launch from the background.
 - `brightness.set` needs `WRITE_SETTINGS`; without the permission the capability isn't visible.
 - Self-compiled builds (with a different package name) don't get the Google Play ML Kit barcode module, so in-app scanning is unavailable; you can work around it by scanning the deep-link QR code with the system camera.
 - Huawei HMS recognition and synthesis support Chinese and English only.

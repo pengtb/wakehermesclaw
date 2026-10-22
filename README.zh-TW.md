@@ -75,7 +75,7 @@
 
 ### 手機控制（Mobile Bridge）
 
-手機本身會啟動一個本機 HTTP 服務（預設 8787），Hermes 透過它反向呼叫手機能力：讀取螢幕與介面操作（`screen.tap/swipe/long_press/drag/back/home`、`screen.find_nodes`、`screen.window.describe`）、截圖（兩段式，JPEG）、拍照、定位、簡訊、聯絡人、行事曆、通知讀取與清除、剪貼簿、媒體控制、音量與亮度、應用程式清單與啟動。
+手機本身會啟動一個本機 HTTP 服務（預設 8787），Hermes 透過它反向呼叫手機能力：讀取螢幕與介面操作（`screen.tap/swipe/long_press/drag/back/home`、`screen.find_nodes`、`screen.window.describe`）、截圖（兩段式，JPEG）、拍照、定位、簡訊、聯絡人、行事曆、通知讀取與清除、剪貼簿、媒體控制（`media.play_pause/next/previous`，另有 `media.status` 讀取曲名、歌手、專輯與播放進度）、音量與亮度、應用程式清單（`apps.list`，列出有桌面入口的應用並標示 `system` / `launchable`）與啟動（`apps.launch`，啟動後核對前景是否真的切換）。
 
 - 一次性配對：在 App 裡開啟橋接後會出現 6 位數配對碼，電腦端用配對碼換取 token，之後免配對。
 - 授權與核准：依能力分組授權，高風險動作（傳簡訊、拍照、介面操作）會走確認彈出視窗，另有速率限制。
@@ -100,7 +100,7 @@
 
 1. **新增後端**：在「設定 → 連線」填入 Hermes 的位址和 token（或 OpenClaw 閘道的主機 / 連接埠）。
 2. **設為數位助理**：把本應用程式設為預設助理，否則長按導覽列會喚不起來。
-3. **給予權限**：麥克風為必需；定位、相機、簡訊、通訊錄、行事曆依你要用的能力給予；想做手機控制再開啟無障礙服務。
+3. **給予權限**：麥克風為必需；定位、相機、簡訊、通訊錄、行事曆依你要用的能力給予；想做手機控制再開啟無障礙服務。 sideload 安裝的套件要先在「應用程式資訊 → ⋮ → 允許受限制的設定」放行，否則系統不允許開啟無障礙。
 
 語音辨識和合成預設使用系統能力，不設定也能出聲、能辨識。
 
@@ -206,6 +206,10 @@ app/src/main/java/com/openclaw/assistant/
 - 傳簡訊改為等待 `sentIntent` 結果再回傳，給出的是真實結果碼。
 - 無障礙手勢改在主執行緒派送並等待回呼，修掉 tap / swipe 無聲失效；`screen.window.describe` 依作用中視窗取得，套件名稱不再誤報。
 - 能力分組新增 `location` / `screen`；橋接狀態卡分成「目前在 / 擬在」兩行，改完設定可直接對照。
+- 新增 `media.status`：讀取目前播放的應用程式、曲名、歌手、專輯、進度與狀態，搭配原有三個傳輸控制鍵。
+- `apps.list` 改成依桌面入口列舉並標示 `system` / `launchable`（在 `<queries>` 宣告 MAIN/LAUNCHER，不依賴 `QUERY_ALL_PACKAGES`）。
+- `apps.launch` 啟動後核對前景是否真的切換，不再無條件回報成功。
+- 橋接的 accept 迴圈不再因一次 `IOException` 退出，避免出現「連接埠在聽、連線全部逾時」的假死。
 
 **日常使用**
 
@@ -221,7 +225,7 @@ app/src/main/java/com/openclaw/assistant/
 
 ## 已知限制
 
-- `apps.launch` 從背景啟動 Activity 會被 Android 10+ 的背景啟動限制攔下，呼叫會回傳成功，但前景不會切換。
+- `apps.launch` 從背景啟動 Activity 會遇到 Android 10+ 的背景啟動限制，是否放行取決於系統。現在啟動後會核對：無障礙開著就回傳 `verified` 與真實前景包名，被攔下時給 `BAL_BLOCKED`；沒開無障礙則標 `verified:false`。作者的 Android 16 機器實測不攔，設定、網易雲、微信都能從背景拉起。
 - `brightness.set` 需要 `WRITE_SETTINGS`，未授權時該能力不會顯示。
 - 自行編譯的套件（套件名稱不同）拿不到 Google Play 的 ML Kit 掃碼模組，App 內掃碼無法使用；可改用系統相機掃描深層連結 QR code 繞過。
 - 華為 HMS 的辨識與合成只支援中文和英文。

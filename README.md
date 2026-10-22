@@ -75,7 +75,7 @@
 
 ### 手机控制（Mobile Bridge）
 
-手机自己起一个本地 HTTP 服务（默认 8787），Hermes 通过它反向调用手机能力：读屏与界面操作（`screen.tap/swipe/long_press/drag/back/home`、`screen.find_nodes`、`screen.window.describe`）、截屏（两段式，JPEG）、拍照、定位、短信、联系人、日历、通知读取与清除、剪贴板、媒体控制、音量与亮度、应用列表与启动。
+手机自己起一个本地 HTTP 服务（默认 8787），Hermes 通过它反向调用手机能力：读屏与界面操作（`screen.tap/swipe/long_press/drag/back/home`、`screen.find_nodes`、`screen.window.describe`）、截屏（两段式，JPEG）、拍照、定位、短信、联系人、日历、通知读取与清除、剪贴板、媒体控制（`media.play_pause/next/previous`，另有 `media.status` 读曲名、歌手、专辑与播放进度）、音量与亮度、应用清单（`apps.list`，列出有桌面入口的应用并标 `system` / `launchable`）与启动（`apps.launch`，启动后核实前台是否真的切换）。
 
 - 一次性配对：App 里开启桥接后出现 6 位配对码，电脑端用配对码换 token，之后免配对。
 - 授权与审批：按能力分组授权，高风险动作（发短信、拍照、界面操作）走确认弹窗，另有速率限制。
@@ -100,7 +100,7 @@
 
 1. **添加后端**：「设置 → 连接」里填 Hermes 的地址和 token（或 OpenClaw 网关的主机 / 端口）。
 2. **设为数字助理**：把本应用设为默认助理，否则长按导航条唤不起来。
-3. **给权限**：麦克风必需；定位、相机、短信、通讯录、日历按你要用的能力给；想做手机控制再开无障碍服务。
+3. **给权限**：麦克风必需；定位、相机、短信、通讯录、日历按你要用的能力给；想做手机控制再开无障碍服务。sideload 安装的包要先在「应用信息 → ⋮ → 允许受限制的设置」里放行，否则系统不允许开启无障碍。
 
 语音识别和合成默认用系统能力，不配置也能出声、能识别。
 
@@ -206,6 +206,10 @@ app/src/main/java/com/openclaw/assistant/
 - 发短信改为等 `sentIntent` 结果再返回，给的是真实结果码。
 - 无障碍手势改在主线程派发并等回调，修掉 tap / swipe 静默失效；`screen.window.describe` 按活动窗口取，包名不再错报。
 - 能力分组新增 `location` / `screen`；桥接状态卡分「目前在 / 拟在」两行，改完配置能直接对照。
+- 新增 `media.status`：读当前播放的应用、曲名、歌手、专辑、进度与状态，配合原来三个传输控制键。
+- `apps.list` 改成按桌面入口枚举并标注 `system` / `launchable`（`<queries>` 里声明 MAIN/LAUNCHER，不依赖 `QUERY_ALL_PACKAGES`）。
+- `apps.launch` 启动后核实前台是否真的切换，不再无条件回成功。
+- 桥接的 accept 循环不再因一次 `IOException` 退出，避免出现「端口在听、连接全部超时」的假死。
 
 **日常使用**
 
@@ -221,7 +225,7 @@ app/src/main/java/com/openclaw/assistant/
 
 ## 已知限制
 
-- `apps.launch` 从后台启动 Activity 会被 Android 10+ 的后台启动限制拦掉，调用返回成功但前台不切换。
+- `apps.launch` 从后台启动 Activity 会遇到 Android 10+ 的后台启动限制，具体是否放行取决于系统。现在启动后会核实：无障碍开着就返回 `verified` 与真实前台包名，被拦时给 `BAL_BLOCKED`；没开无障碍则标 `verified:false`。作者的 Android 16 机器上实测不拦，设置、网易云、微信都能从后台拉起。
 - `brightness.set` 需要 `WRITE_SETTINGS`，没授权时能力不可见。
 - 自编译包（包名不同）拿不到 Google Play 的 ML Kit 扫码模块，App 内扫码不可用；可以用系统相机扫深链二维码绕过。
 - 华为 HMS 的识别与合成只支持中文和英文。

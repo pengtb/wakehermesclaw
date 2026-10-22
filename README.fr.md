@@ -75,7 +75,7 @@ Trois types de backends sont pris en charge, la voix et le chat choisissant chac
 
 ### Contrôle du téléphone (Mobile Bridge)
 
-Le téléphone lance lui-même un service HTTP local (8787 par défaut), par lequel Hermes rappelle les capacités du téléphone : lecture de l'écran et manipulation de l'interface (`screen.tap/swipe/long_press/drag/back/home`, `screen.find_nodes`, `screen.window.describe`), capture d'écran (en deux temps, JPEG), photo, localisation, SMS, contacts, calendrier, lecture et effacement des notifications, presse-papiers, contrôle des médias, volume et luminosité, liste et lancement d'applications.
+Le téléphone lance lui-même un service HTTP local (8787 par défaut), par lequel Hermes rappelle les capacités du téléphone : lecture de l'écran et pilotage de l'interface (`screen.tap/swipe/long_press/drag/back/home`, `screen.find_nodes`, `screen.window.describe`), captures (deux étapes, JPEG), appareil photo, localisation, SMS, contacts, calendrier, lecture et suppression des notifications, presse-papiers, contrôle multimédia (`media.play_pause/next/previous`, plus `media.status` pour le titre, l'artiste, l'album et la position), volume et luminosité, liste des applications (`apps.list`, celles ayant une entrée dans le lanceur, marquées `system` / `launchable`) et lancement (`apps.launch`, qui vérifie que le premier plan a réellement changé).
 
 - Appairage unique : après activation du pont dans l'app, un code d'appairage à 6 chiffres s'affiche ; côté ordinateur, on échange le code contre un token, ensuite plus besoin d'appairer.
 - Autorisations et approbations : autorisations groupées par capacité, les actions à risque (envoi de SMS, photo, manipulation de l'interface) passent par une boîte de confirmation, avec en plus des limites de débit.
@@ -100,7 +100,7 @@ Après l'installation, trois choses à faire dans l'app :
 
 1. **Ajouter un backend** : dans « Réglages → Connexion », saisissez l'adresse et le token de Hermes (ou l'hôte / le port de la passerelle OpenClaw).
 2. **Définir comme assistant numérique** : définissez cette application comme assistant par défaut, sinon l'appui long sur la barre de navigation ne la déclenchera pas.
-3. **Accorder les permissions** : le microphone est indispensable ; localisation, appareil photo, SMS, contacts et calendrier selon les capacités que vous voulez utiliser ; pour le contrôle du téléphone, activez en plus le service d'accessibilité.
+3. **Accorder les permissions** : le microphone est indispensable ; localisation, appareil photo, SMS, contacts et calendrier selon les capacités que vous voulez utiliser ; pour le contrôle du téléphone, activez en plus le service d'accessibilité. Les applications installées par sideload doivent d'abord autoriser les paramètres restreints (Infos sur l'app → ⋮ → Autoriser les paramètres restreints), sinon le système refuse d'activer l'accessibilité.
 
 La reconnaissance et la synthèse vocales utilisent par défaut les capacités du système : sans rien configurer, elles parlent et reconnaissent.
 
@@ -206,6 +206,10 @@ L'amont est `yuga-hashimoto/openclaw-assistant`. Les modifications apportées pa
 - L'envoi de SMS attend désormais le résultat de `sentIntent` avant de répondre, et renvoie le vrai code de résultat.
 - Les gestes d'accessibilité sont émis sur le thread principal avec attente du rappel, ce qui corrige l'échec silencieux de tap / swipe ; `screen.window.describe` lit la fenêtre active, le nom de package n'est plus erroné.
 - Nouveaux groupes de capacités `location` / `screen` ; la carte d'état du pont affiche deux lignes, « actuellement sur / prévu sur », pour comparer directement après modification de la configuration.
+- Nouveau `media.status` : lit l'app en cours de lecture, le titre, l'artiste, l'album, la position et l'état, en plus des trois touches de contrôle existantes.
+- `apps.list` énumère désormais par entrée du lanceur et marque `system` / `launchable` (MAIN/LAUNCHER déclaré dans `<queries>`, sans `QUERY_ALL_PACKAGES`).
+- `apps.launch` vérifie que le premier plan a réellement changé au lieu de répondre systématiquement un succès.
+- La boucle accept du pont ne s'arrête plus sur un seul `IOException`, qui laissait le port à l'écoute alors que toutes les connexions expiraient.
 
 **Usage quotidien**
 
@@ -221,7 +225,7 @@ Le détail des modifications se lit dans `git log` ; les arbitrages d'architectu
 
 ## Limitations connues
 
-- `apps.launch` : lancer une Activity depuis l'arrière-plan est bloqué par les restrictions de démarrage en arrière-plan d'Android 10 et supérieur ; l'appel renvoie un succès mais le premier plan ne change pas.
+- `apps.launch` : lancer une Activity depuis l'arrière-plan se heurte aux restrictions d'Android 10+ ; le résultat dépend du système. Il vérifie désormais après le lancement : avec l'accessibilité active il renvoie `verified` et le paquet réellement au premier plan, `BAL_BLOCKED` si le lancement est bloqué, `verified:false` sans accessibilité. Sur l'appareil Android 16 de l'auteur, rien n'est bloqué : Réglages, NetEase Cloud Music et WeChat démarrent depuis l'arrière-plan.
 - `brightness.set` nécessite `WRITE_SETTINGS` ; sans autorisation, la capacité n'est pas visible.
 - Un paquet auto-compilé (nom de package différent) n'obtient pas le module de scan ML Kit de Google Play, le scan dans l'app est donc inutilisable ; on peut contourner en scannant le QR code de deep link avec l'appareil photo du système.
 - La reconnaissance et la synthèse de Huawei HMS ne prennent en charge que le chinois et l'anglais.
