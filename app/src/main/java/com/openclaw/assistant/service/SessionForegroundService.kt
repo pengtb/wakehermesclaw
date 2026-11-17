@@ -155,10 +155,13 @@ class SessionForegroundService : Service() {
     private fun createNotification(): Notification {
         // 点通知要回到"语音对话"本身，不是回主页：发一条 app 内广播，
         // 由 OpenClawAssistantService 的接收器调 showSession()（会话已存在时就是重新显示面板）。
+        // 带上 resume 标记：这是回到正在进行的对话，不能当一次新的激活（否则会新建后端会话、清空面板）。
         val pendingIntent = PendingIntent.getBroadcast(
             this,
             0,
-            Intent(OpenClawAssistantService.ACTION_SHOW_ASSISTANT).setPackage(packageName),
+            Intent(OpenClawAssistantService.ACTION_SHOW_ASSISTANT).setPackage(packageName).apply {
+                putExtra(OpenClawAssistantService.EXTRA_RESUME_CONVERSATION, true)
+            },
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         return NotificationCompat.Builder(this, CHANNEL_ID)

@@ -31,6 +31,11 @@ class OpenClawAssistantService : VoiceInteractionService() {
         private const val PENDING_SESSION_TIMEOUT_MS = 30_000L
         const val ACTION_SHOW_ASSISTANT = "com.openclaw.assistant.ACTION_SHOW_ASSISTANT"
         const val EXTRA_VOICE_TARGET = "com.openclaw.assistant.EXTRA_VOICE_TARGET"
+        /**
+         * 状态栏那条"回到语音对话"带这个标记：它是回到正在进行的对话，不是一次新的激活。
+         * 会话层看到它就沿用当前后端会话、不动面板上已有的内容，也不打断正在跑的那一轮。
+         */
+        const val EXTRA_RESUME_CONVERSATION = "com.openclaw.assistant.EXTRA_RESUME_CONVERSATION"
 
         /**
          * 服务进程起来没有（created）／系统真的把服务绑定上了没有（ready）。
@@ -153,6 +158,9 @@ class OpenClawAssistantService : VoiceInteractionService() {
         return Bundle().apply {
             sourceIntent?.getStringExtra(EXTRA_VOICE_TARGET)?.takeIf { it.isNotBlank() }?.let { target ->
                 putString(EXTRA_VOICE_TARGET, target)
+            }
+            if (sourceIntent?.getBooleanExtra(EXTRA_RESUME_CONVERSATION, false) == true) {
+                putBoolean(EXTRA_RESUME_CONVERSATION, true)
             }
         }
     }

@@ -296,20 +296,33 @@ class OpenClawSession(
         super.onShow(args, showFlags)
         sessionArgs = args
 
+        // 点状态栏那条"回到语音对话"带这个标记：回到正在进行的对话，不是一次新的激活。
+        // 不带标记的入口（唤醒词 / 磁贴 / 耳机键）仍按原来的行为开一轮新的。
+        val resumingConversation = args?.getBoolean(OpenClawAssistantService.EXTRA_RESUME_CONVERSATION) == true
+        // 这一轮是否还在跑（等识别结果 / 等后端 / 播报中）：resume 时不能打断它
+        val turn = currentState.value
+        val turnInFlight = turn == AssistantState.PROCESSING ||
+            turn == AssistantState.THINKING ||
+            turn == AssistantState.SPEAKING ||
+            turn == AssistantState.PREPARING_SPEECH
+
         // Recreate scope if it was cancelled by a previous onHide()
         if (!scope.isActive) {
             scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
         }
 
         // Ensure any existing SpeechRecognizerManager is cleaned up before creating a new one
-        if (this::speechManager.isInitialized) {
-            try {
-                speechManager.destroy()
-            } catch (e: Exception) {
-                Log.w(TAG, "Failed to destroy existing AsrManager before recreation", e)
+        // resume 且这一轮还在跑时不动它：正在用的识别器被销毁，那轮识别就断了
+        if (!(resumingConversation && turnInFlight)) {
+            if (this::speechManager.isInitialized) {
+                try {
+                    speechManager.destroy()
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to destroy existing AsrManager before recreation", e)
+                }
             }
+            speechManager = AsrManager(context)
         }
-        speechManager = AsrManager(context)
 
         lifecycleRegistry.handleLifecycleEvent(androidx.lifecycle.Lifecycle.Event.ON_START)
         lifecycleRegistry.handleLifecycleEvent(androidx.lifecycle.Lifecycle.Event.ON_RESUME)
@@ -329,7 +342,16 @@ class OpenClawSession(
         sendPauseBroadcast()
         
         // SESSION MANAGEMENT
-        if (isOpenClawVoiceTarget()) {
+        // resume（点状态栏那条通知回来）沿用已持久化的会话：settings.sessionId 与后端会话都不动。
+        // 这里再新建一条的话，后端就当成全新对话，前面说过的话全丢。
+        if (resumingConversation) {
+            // 极端情况：会话实例是新建的（框架把上一个销毁了），就从已保存的会话 id 接着用，
+            // 后端上下文与本地消息记录都不会断。
+            if (currentSessionId == null) {
+                currentSessionId = settings.sessionId.takeIf { it.isNotBlank() }
+            }
+            Log.d(TAG, "onShow: resume 请求，沿用当前会话 ${currentSessionId ?: "-"}")
+        } else if (isOpenClawVoiceTarget()) {
             // Gateway mode: manage session on the gateway side, not in local DB
             val nodeRuntime = (context.applicationContext as OpenClawApplication).nodeRuntime
             if (!settings.resumeLatestSession) {
@@ -371,6 +393,13 @@ class OpenClawSession(
             }
         }
         
+        // resume 时若这一轮还在跑（等后端 / 播报中），只把面板显示回来：
+        // 不重新开麦、不清文本。否则正在说的那段会被掐掉，界面看着像开了新一轮。
+        if (resumingConversation && turnInFlight) {
+            Log.d(TAG, "onShow: resume while $turn, 只恢复面板显示")
+            return
+        }
+
         // Check settings
         if (!settings.isConfigured()) {
             currentState.value = AssistantState.ERROR
@@ -394,7 +423,8 @@ class OpenClawSession(
         }
 
         // Start speech recognition
-        startListening()
+        // resume 时不抹掉上一轮的问答：面板保持原样，只是重新开麦继续这段对话
+        startListening(keepLastTurn = resumingConversation)
     }
     
     /**
@@ -516,15 +546,18 @@ class OpenClawSession(
     private var speakingJob: Job? = null
     private var isUserDismissed = false
 
-    private fun startListening(initialDelayMs: Long = 50L) {
-        Log.d(TAG, "startListening() called, currentState=${currentState.value}, listeningJob=${listeningJob}, speakingJob=${speakingJob}")
+    private fun startListening(initialDelayMs: Long = 50L, keepLastTurn: Boolean = false) {
+        Log.d(TAG, "startListening() called, currentState=${currentState.value}, listeningJob=${listeningJob}, speakingJob=${speakingJob}, keepLastTurn=$keepLastTurn")
         listeningJob?.cancel()
         acquireWakeLock()
         sendPauseBroadcast()
 
         currentState.value = AssistantState.PROCESSING
-        displayText.value = ""
-        userQuery.value = ""
+        // keepLastTurn：从状态栏"回到语音对话"时沿用上一轮内容，别把界面清成空的
+        if (!keepLastTurn) {
+            displayText.value = ""
+            userQuery.value = ""
+        }
         partialText.value = ""
         errorMessage.value = null
         audioLevel.value = 0f
